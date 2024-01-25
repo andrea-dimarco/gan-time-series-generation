@@ -1,0 +1,11 @@
+TO DO:
+- read the paper
+- setup standard format for the model
+- make the model
+- train the model (on better hardware)
+    - home computer
+    - colab pro 
+
+FUTURE:
+- read the second paper
+- figure out scope of the project
