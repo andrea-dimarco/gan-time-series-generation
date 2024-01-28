@@ -1,11 +1,37 @@
 TO DO:
-- read the paper
+- study TimeGAN code
+    - visualization_metrics
+    - timegan: Use original time-series data as training set to generater synthetic time-series data
+    - main_timegan: Report discriminative and predictive scores for the dataset and t-SNE and PCA analysis
+    - utils
+    - tutorial_timegan
+    - discriminative_metrics
+    - predictive_metrics
+
+- review Weights & Biases -> [here](https://www.youtube.com/playlist?list=PLD80i8An1OEGajeVo15ohAQYF1Ttle0lk)
+- review cool plots for the model
+- Translate TimeGAN
+    - change data types to tensors not python lists!!
+    - use a data loader
+    - to Jupyter
+    - to PyTorch
 - setup standard format for the model
 - make the model
 - train the model (on better hardware)
     - home computer
     - colab pro 
 
-FUTURE:
-- read the second paper
-- figure out scope of the project
+- uninstall
+    - wandb
+    - pytorch-lightning
+    - pyyaml
+    - torchvision
+    - plotly
+    - tensorflow
+
+- write Report
+    - 1) Introduction: section where the problem is presented, and the overall proposed approach is briefly described
+    - 2) Related work section
+    - 3) Method section, where the main methodology used for the project is described
+    - 4) experimental Results (qualitative, quantitative, or both
+    - 5) \textbf{discussion and conclusions}.
