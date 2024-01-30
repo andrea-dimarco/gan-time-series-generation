@@ -78,8 +78,10 @@ def timegan(ori_data, parameters, scaler=MinMaxScaler()):
   #  the generator is EXPANDING the vector Z 
   E_hat = generator(Z, T, module_name=module_name, hidden_dim=hidden_dim, num_layers=num_layers) 
 
-  # The supervisors aim to measure the DIFFERENCES between the latent space defined by te EMBEDDER 
+  # (maybe)
+  # The supervisors aim to close the DIFFERENCES between the latent space defined by te EMBEDDER 
   #  and the latent space defined by the GENERATOR, they must span the same latent space
+  #  we want the supervisor to leave H intact and to map E_hat to the same space as H
   H_hat = supervisor(E_hat, T, module_name=module_name, hidden_dim=hidden_dim, num_layers=num_layers) # the supervisor must tell if E_hat is fake (it is)
   H_hat_supervise = supervisor(H, T, module_name=module_name, hidden_dim=hidden_dim, num_layers=num_layers) # the supervisor must tell if H is fake (it isn't)
   
@@ -98,13 +100,14 @@ def timegan(ori_data, parameters, scaler=MinMaxScaler()):
   X_hat = recovery(H_hat, T, module_name=module_name, hidden_dim=hidden_dim, num_layers=num_layers)
     
   # Discriminator
-  #  discriminate between the latent space representations, not the feature reconstructions
+  #  Discriminate between the LATENT SPACE representations, NOT the feature reconstructions.
+  #   it is a BIDIRECTIONAL RNN
   Y_fake   = discriminator(H_hat, T, module_name=module_name, hidden_dim=hidden_dim, num_layers=num_layers)
-  Y_real   = discriminator(H, T, module_name=module_name, hidden_dim=hidden_dim, num_layers=num_layers)     
+  Y_real   = discriminator(H, T, module_name=module_name, hidden_dim=hidden_dim, num_layers=num_layers) 
+  # to prevent fading gradients we feed forward also E_hat
   Y_fake_e = discriminator(E_hat, T, module_name=module_name, hidden_dim=hidden_dim, num_layers=num_layers)
 
-  return 0
-'''
+  
   # Variables        
   e_vars = [v for v in tf.compat.v1.trainable_variables() if v.name.startswith('embedder')]
   r_vars = [v for v in tf.compat.v1.trainable_variables() if v.name.startswith('recovery')]
@@ -127,6 +130,8 @@ def timegan(ori_data, parameters, scaler=MinMaxScaler()):
   G_loss_S = tf.compat.v1.losses.mean_squared_error(H[:,1:,:], H_hat_supervise[:,:-1,:])
     
   # 3. Two Momments
+  # moments = variance of the dataset
+  # sqrt(moments) = std of the dataset
   G_loss_V1 = tf.reduce_mean(tf.abs(tf.sqrt(tf.nn.moments(X_hat,[0])[1] + 1e-6) - tf.sqrt(tf.nn.moments(X,[0])[1] + 1e-6)))
   G_loss_V2 = tf.reduce_mean(tf.abs((tf.nn.moments(X_hat,[0])[0]) - (tf.nn.moments(X,[0])[0])))
     
@@ -134,7 +139,8 @@ def timegan(ori_data, parameters, scaler=MinMaxScaler()):
     
   # 4. Summation
   G_loss = G_loss_U + gamma * G_loss_U_e + 100 * tf.sqrt(G_loss_S) + 100*G_loss_V 
-            
+
+  
   # Embedder network loss
   E_loss_T0 = tf.compat.v1.losses.mean_squared_error(X, X_tilde)
   E_loss0 = 10*tf.sqrt(E_loss_T0)
@@ -230,9 +236,8 @@ def timegan(ori_data, parameters, scaler=MinMaxScaler()):
   # Renormalization
   generated_data = generated_data * max_val
   generated_data = generated_data + min_val
-    
+
   return generated_data
-'''
 
 def embedder(X, T, module_name='gru', num_layers=3, hidden_dim=24):
   '''
