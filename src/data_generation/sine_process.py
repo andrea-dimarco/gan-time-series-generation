@@ -76,3 +76,11 @@ def save_sine_process(p=100, N=1000, folder_path="./", dataset_name="generated_s
     dataset_path = folder_path + dataset_name + ".csv"
     df = pd.DataFrame(samples)
     df.to_csv(dataset_path, index=False, header=False)
+
+def get_sine_process(p,N):
+    '''
+    Generate and return the sine process data without dividing it into sequences.
+    '''
+    return sine_data_generation(p=p, N=N, seq_len=1).squeeze()
+
+save_sine_process(p=3, N=1000)

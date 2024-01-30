@@ -94,7 +94,7 @@ def plot_processes(samples, save_picture=False, show_plot=True):
         if show_plot:
             plt.show()
 
-def save_weiner_process(p=100, N=1000, folder_path="./", dataset_name="generated_stream"):
+def save_weiner_process(p=100, N=1000, folder_path="./", dataset_name="generated_stream", show_plot=False):
     '''
     Save the generated samples as a csv file.
     '''
@@ -106,8 +106,14 @@ def save_weiner_process(p=100, N=1000, folder_path="./", dataset_name="generated
     df = pd.DataFrame(samples)
     df.to_csv(dataset_path, index=False, header=False)
 
+    if show_plot:
+        plot_processes(samples)
+
 def get_weiner_process(p=100,N=1000):
     '''
     Get the generated samples as a numpy matrix.
     '''
     return multi_dim_wiener_process(p=p, N=N)
+
+
+save_weiner_process(p=2, N=1000)

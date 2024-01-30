@@ -32,3 +32,13 @@ def rnd_cov_gen(folder_path="./", dataset_name="random_covariance", p=100, N=100
     dataset_path = folder_path + dataset_name + ".csv"
     df = pd.DataFrame(np.random.multivariate_normal(mean=mu, cov=noisy_cov, size=N))
     df.to_csv(dataset_path, index=False, header=False)
+
+def get_iid_sequence(p=100, N=1000, noise=0.5):
+    # Generate the covariance matrix
+    mu = np.zeros(p)
+    noise_matrix = np.random.uniform(-noise, noise, size=(p,p))
+    noise_matrix = (noise_matrix + noise_matrix.T) / 2 # must be semidefinite positive
+    np.fill_diagonal(noise_matrix,0) 
+    noisy_cov = np.eye(p) + noise_matrix
+
+    return np.random.multivariate_normal(mean=mu, cov=noisy_cov, size=N)
