@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 
-def rnd_cov_gen(folder_path="./", dataset_name="random_covariance", p=100, N=10000, mean=0.0, variance=1.0, noise = 0.2):
+def save_cov_sequence(folder_path="./", dataset_name="random_covariance", p=100, N=10000, mean=0.0, variance=1.0, noise = 0.2):
     '''
     This function generates a dataset of i.i.d. realizations
     sampled from a process with a randomly perturbed covariance matrix. 
@@ -33,7 +33,7 @@ def rnd_cov_gen(folder_path="./", dataset_name="random_covariance", p=100, N=100
     df = pd.DataFrame(np.random.multivariate_normal(mean=mu, cov=noisy_cov, size=N))
     df.to_csv(dataset_path, index=False, header=False)
 
-def get_iid_sequence(p=100, N=1000, noise=0.5):
+def get_cov_sequence(p=100, N=1000, noise=0.5):
     # Generate the covariance matrix
     mu = np.zeros(p)
     noise_matrix = np.random.uniform(-noise, noise, size=(p,p))
@@ -42,3 +42,19 @@ def get_iid_sequence(p=100, N=1000, noise=0.5):
     noisy_cov = np.eye(p) + noise_matrix
 
     return np.random.multivariate_normal(mean=mu, cov=noisy_cov, size=N)
+
+def get_iid_sequence(p=100, N=1000, mean=0.0, variance=1.0):
+    # Generate the covariance matrix
+    mu = np.ones(p)*mean
+    variance_matrix = np.eye(p)*variance
+    return np.random.multivariate_normal(mean=mu, cov=variance_matrix, size=N)
+
+def save_iid_sequence(folder_path="./", dataset_name="iid", p=100, N=1000, mean=0.0, variance=1.0):
+    # Generate the covariance matrix
+    mu = np.ones(p)*mean
+    variance_matrix = np.eye(p)*variance
+
+    # Generate & Save the dataset
+    dataset_path = folder_path + dataset_name + ".csv"
+    df = pd.DataFrame(np.random.multivariate_normal(mean=mu, cov=variance_matrix, size=N))
+    df.to_csv(dataset_path, index=False, header=False)

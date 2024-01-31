@@ -69,7 +69,7 @@ def timegan(ori_data, parameters, scaler=MinMaxScaler()):
   H = embedder(X, T, module_name=module_name, hidden_dim=hidden_dim, num_layers=num_layers)
   X_tilde = recovery(H, T, module_name=module_name, hidden_dim=hidden_dim, num_layers=num_layers)
   
-
+  
   # Generator
   # Instead of generating the sequence directy from the random vector
   #  we first generate the LATENT SPACE representation of the sequence to be generated
@@ -79,7 +79,7 @@ def timegan(ori_data, parameters, scaler=MinMaxScaler()):
   E_hat = generator(Z, T, module_name=module_name, hidden_dim=hidden_dim, num_layers=num_layers) 
 
   # (maybe)
-  # The supervisors aim to close the DIFFERENCES between the latent space defined by te EMBEDDER 
+  # The supervisors aims to close the DIFFERENCES between the latent space defined by te EMBEDDER 
   #  and the latent space defined by the GENERATOR, they must span the same latent space
   #  we want the supervisor to leave H intact and to map E_hat to the same space as H
   H_hat = supervisor(E_hat, T, module_name=module_name, hidden_dim=hidden_dim, num_layers=num_layers) # the supervisor must tell if E_hat is fake (it is)
@@ -92,6 +92,8 @@ def timegan(ori_data, parameters, scaler=MinMaxScaler()):
   print("\nEmbedding of real data\n H:\n" + str(H)) 
   print("\nFake Embedding from Z\n E_hat:\n" + str(E_hat))
   print("\nFake Latent Space for the sequences\n H_hat:\n" + str(H_hat)) 
+
+  return 0
 
   # Synthetic data
   #  Fake data generated from the fake latent space obtained from Z.
@@ -335,16 +337,16 @@ def supervisor(H, T, module_name='gru', hidden_dim=3, num_layers=24):
 
 if True:
   # Set number of samples and its dimensions
-  seq_len = 24
-  no, dim = 10000, 5
+  seq_len = 20
+  no, dim = 1000, 5
   ori_data = sine_data_generation(no, seq_len, dim)
 
 parameters = dict()
 
 parameters['module'] = 'gru' 
-parameters['hidden_dim'] = 2
+parameters['hidden_dim'] = 3
 parameters['num_layer'] = 2
-parameters['iterations'] = 100
-parameters['batch_size'] = 32
+parameters['iterations'] = 10
+parameters['batch_size'] = 5
 
 timegan(ori_data, parameters)
