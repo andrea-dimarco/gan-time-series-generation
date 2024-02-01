@@ -44,13 +44,13 @@ class Supervisor(nn.Module):
         Forward pass
         '''
         batch_size = x.size()[0]
-        h0 = zeros(self.num_layers, batch_size, self.hidden_size).to(self.device) # initial state
+        h0 = zeros(self.num_layers, batch_size, self.output_size).to(self.device) # initial state
 
         if self.module_type == 'lstm':
-            c0 = zeros(self.num_layers, batch_size, self.hidden_size).to(self.device)
-            out, _ = self.module(x, (c0, h0)) # shape = ( batch_size, seq_len, hidden_size )
+            c0 = zeros(self.num_layers, batch_size, self.output_size).to(self.device)
+            out, _ = self.module(x, (c0, h0)) # shape = ( batch_size, seq_len, output_size )
         else:
-            out, _ = self.module(x, h0) # shape = ( batch_size, seq_len, hidden_size )
+            out, _ = self.module(x, h0) # shape = ( batch_size, seq_len, output_size )
 
         out = self.norm(out)
 

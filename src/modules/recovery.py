@@ -20,6 +20,7 @@ class Recovery(nn.Module):
         super().__init__()
         self.module_type = module_type
         self.num_layers = num_layers
+        self.num_final_layers = int(num_layers/3+1)
         self.hidden_size = hidden_size
         self.output_size = output_size
         self.device = device
@@ -27,13 +28,13 @@ class Recovery(nn.Module):
         # input.shape = ( batch_size, seq_len, feature_size )
         if self.module_type == 'rnn':
             self.module = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
-            self.final  = nn.RNN(hidden_size, output_size, int(num_layers/3+1), batch_first=True)
+            self.final  = nn.RNN(hidden_size, output_size, self.num_final_layers, batch_first=True)
         elif self.module_type == 'gru':
             self.module = nn.GRU(input_size, hidden_size, num_layers, batch_first=True)
-            self.final  = nn.GRU(hidden_size, output_size, int(num_layers/3+1), batch_first=True)
+            self.final  = nn.GRU(hidden_size, output_size, self.num_final_layers, batch_first=True)
         elif self.module_type == 'lstm':
             self.module = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-            self.final  = nn.LSTM(hidden_size, output_size, int(num_layers/3+1), batch_first=True)
+            self.final  = nn.LSTM(hidden_size, output_size, self.num_final_layers, batch_first=True)
         else:
             assert(False)
 
@@ -46,7 +47,7 @@ class Recovery(nn.Module):
         '''
         batch_size = x.size()[0]
         h0 = zeros(self.num_layers, batch_size, self.hidden_size).to(self.device) # initial state
-        h0_final = zeros(self.num_layers, batch_size, self.output_size).to(self.device) # initial state
+        h0_final = zeros(self.num_final_layers, batch_size, self.output_size).to(self.device) # initial state
 
         if self.module_type == 'lstm':
             c0 = zeros(self.num_layers, batch_size, self.hidden_size).to(self.device)

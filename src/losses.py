@@ -23,10 +23,13 @@ def discriminator_loss(Y_real: Tensor, Y_fake: Tensor, Y_fake_e: Tensor, gamma: 
     '''
     loss_f = CrossEntropyLoss()
 
-    loss_real = loss_f(torch.ones_like(Y_real), Y_real)
-    loss_fake = loss_f(torch.zeros_like(Y_fake), Y_fake)
-    loss_fake_e = loss_f(torch.zeros_like(Y_fake_e), Y_fake_e)
-    D_loss = loss_real + loss_fake + gamma*loss_fake_e
+    REAL_ground_truth = torch.zeros_like(Y_real) + torch.tensor([1,0])
+    FAKE_ground_truth = torch.zeros_like(Y_real) + torch.tensor([0,1])
+
+    loss_real = loss_f(REAL_ground_truth, Y_real)
+    loss_fake = loss_f(FAKE_ground_truth, Y_fake)
+    loss_fake_e = loss_f(FAKE_ground_truth, Y_fake_e)
+    D_loss = loss_real + loss_fake + gamma*loss_fake_e 
 
     return D_loss
 
@@ -47,12 +50,14 @@ def generator_loss(Y_fake: Tensor, Y_fake_e: Tensor, X: Tensor, H: Tensor, H_hat
         - G_loss: float with the overall loss of the GENERATOR module
         - GS_loss: the supervised loss
     '''
-    adversarial_loss = CrossEntropyLoss(), 
+    adversarial_loss = CrossEntropyLoss() 
     reconstruction_loss = MSELoss()
 
+    as_real = torch.zeros_like(Y_fake) + torch.tensor([1,0])
+
     # Adversarial
-    GA_loss = adversarial_loss(torch.ones_like(Y_fake), Y_fake)
-    GA_loss_e = adversarial_loss(torch.ones_like(Y_fake_e), Y_fake_e)
+    GA_loss = adversarial_loss(as_real, Y_fake)
+    GA_loss_e = adversarial_loss(as_real, Y_fake_e)
 
     # Supervised loss
     GS_loss = reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
@@ -66,7 +71,7 @@ def generator_loss(Y_fake: Tensor, Y_fake_e: Tensor, X: Tensor, H: Tensor, H_hat
     G_loss_V = G_loss_V1 + G_loss_V2
 
     # Put it back together
-    G_loss = GA_loss + gamma*GA_loss_e + 100*tf.sqrt(GS_loss) + 100*G_loss_V 
+    G_loss = GA_loss + gamma*GA_loss_e + 100*torch.sqrt(GS_loss) + 100*G_loss_V 
 
     return G_loss, GS_loss
 
@@ -92,11 +97,73 @@ def embedder_loss(X: Tensor, X_tilde: Tensor, GS_loss: torch.float32) -> torch.f
 
     return E_loss
 
-## testing area
-'''
-from data_generation.iid_sequence_generator import get_iid_sequence
 
-p = 2
+'''
+## testing area
+from data_generation.iid_sequence_generator import get_iid_sequence
+import dataset_handling as dh
+import modules.discriminator
+import modules.embedder
+import modules.generator
+import modules.recovery
+import modules.supervisor
+
+from torch.utils.data import DataLoader
+
+p = 10
 N = 100
-X = get_iid_sequence(p=p, N=N)
+seq_len = 20
+
+batch_size = 2
+data_size = p
+latent_space_size = int(data_size/3)
+noise_size = 1
+
+# Modules
+discriminator = modules.discriminator.Discriminator(input_size=latent_space_size, hidden_size=latent_space_size)
+embedder = modules.embedder.Embedder(input_size=data_size, hidden_size=(latent_space_size*2), output_size=latent_space_size)
+generator = modules.generator.Generator(input_size=noise_size, hidden_size=(noise_size*2), output_size=latent_space_size)
+recovery = modules.recovery.Recovery(input_size=latent_space_size, hidden_size=(latent_space_size*2), output_size=data_size)
+supervisor = modules.supervisor.Supervisor(input_size=latent_space_size, seq_len=seq_len)
+
+# Data
+X = dh.SequenceDataset(seq_type='wein', p=p, N=N, seq_len=seq_len)
+Z = dh.SequenceDataset(seq_type='iid', p=noise_size, N=N, seq_len=seq_len)
+
+X_batch = torch.zeros((batch_size, seq_len, p))
+Z_batch = torch.zeros((batch_size, seq_len, noise_size))
+
+for i in range(batch_size):
+    X_batch[i] = X[i]
+    Z_batch[i] = Z[i]
+
+
+# Embedder
+H = embedder(X_batch)
+
+# Generator
+E_hat = generator(Z_batch) 
+
+# SUpervisor
+H_hat = supervisor(E_hat)
+H_hat_supervise = supervisor(H)
+
+# Recovery
+X_tilde = recovery(H)
+X_hat = recovery(H_hat)
+
+# Discriminator
+Y_fake   = discriminator(H_hat)
+Y_real   = discriminator(H) 
+Y_fake_e = discriminator(E_hat)
+
+
+# Losses
+D_loss = discriminator_loss(Y_real, Y_fake, Y_fake_e)
+G_loss, S_loss = generator_loss(Y_fake, Y_fake_e, X_batch, H, H_hat_supervise, X_hat)
+E_loss = embedder_loss(X_batch, X_tilde, S_loss)
+
+
+# Visualize
+print(f"Discriminator: {D_loss}\nGenerator: {G_loss}\nSupervisor: {S_loss}\nEmbedder: {E_loss}")
 '''

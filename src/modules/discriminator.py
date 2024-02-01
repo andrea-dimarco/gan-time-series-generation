@@ -36,8 +36,9 @@ class Discriminator(nn.Module):
         # extra linear layer
         self.block = nn.Sequential(
             nn.BatchNorm1d(hidden_size),
-            nn.Linear(hidden_size, 1),
-            nn.LeakyReLU(alpha, inplace=True)
+            nn.Linear(hidden_size, 2),
+            #nn.LeakyReLU(alpha, inplace=True)
+            nn.Softmax(dim=1)
         )
 
 
@@ -57,43 +58,3 @@ class Discriminator(nn.Module):
         out = out[:,-1,:] # only consider the last output of each sequence
 
         return self.block(out)
-    
-## TESTING AREA
-'''
-import dataset_handling as dh
-import numpy as np
-from torch.utils.data import DataLoader
-
-np.random.seed(0)
-p = 5
-N = 10000
-seq_len = 10
-seq_type = 'wein'
-num_epochs = 0
-batch_size = 10
-
-device = 'cpu'
-
-dataset = dh.SequenceDataset(p=p, N=N, seq_len=seq_len, seq_type=seq_type)
-train_loader = DataLoader(
-    dataset=dataset,
-    batch_size=batch_size,
-)
-test_loader = train_loader
-
-module_type = 'lstm'
-input_size = p
-hidden_size = 2
-num_layers = 2
-output_size = int(p/2)
-
-
-model = Discriminator(input_size, hidden_size, alpha=0.2, device='cpu', num_layers=3, module_type='gru').to(device)
-sequence = zeros((2, seq_len, p))
-sequence[0] = dataset[0]
-sequence[1] = dataset[1]
-
-print(sequence.size())
-out = model(sequence)
-print(out)
-'''

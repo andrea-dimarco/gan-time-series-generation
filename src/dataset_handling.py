@@ -23,7 +23,7 @@ class SequenceDataset(Dataset):
                  ) -> None:
         super().__init__()
 
-        assert(seq_type in ['wein','sine','iids'])
+        assert(seq_type in ['wein','sine','iid'])
 
         # generate sequence
         if seq_type == 'wein':
