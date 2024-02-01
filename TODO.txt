@@ -7,12 +7,11 @@ TO DO:
 - review Weights & Biases -> [here](https://www.youtube.com/playlist?list=PLD80i8An1OEGajeVo15ohAQYF1Ttle0lk)
 - review cool plots for the model
 - Translate TimeGAN
-    - use a data loader
-        - how to normalize the sequences???
     - to Jupyter
     - to PyTorch
 - setup standard format for the model
 - make the model
+    - should the recovery module have a linear layer at the end? and how to implement it?
 - train the model (on better hardware)
     - home computer
     - colab pro 

@@ -37,11 +37,6 @@ class Supervisor(nn.Module):
             assert(False)
 
         self.norm = nn.BatchNorm1d(seq_len)
-        # extra linear layer
-        # self.block = nn.Sequential(
-        #     nn.Linear(hidden_size, output_size),
-        #     nn.Sigmoid()
-        # )
 
 
     def forward(self, x: Tensor) -> Tensor:

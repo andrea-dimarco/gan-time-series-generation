@@ -3,7 +3,7 @@ from torch import nn, Tensor, zeros
 
 
 class Embedder(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, seq_len, device='cpu', num_layers=3, module_type='gru') -> None:
+    def __init__(self, input_size, hidden_size, output_size, device='cpu', num_layers=3, module_type='gru') -> None:
         '''
         The Embedder maps the input sequence to a lower dimensionality representation.
         Args:
@@ -12,16 +12,15 @@ class Embedder(nn.Module):
             - hidden_size: dimensionality of the sample returned by the module
             - num_layers: depth of the module
             - output_size: size of the final output
-            - seq_len: length of the sequence to embed
             - device: which device should the model run on
         '''
-        
         assert(module_type in ['rnn', 'gru', 'lstm'])
 
         super().__init__()
         self.module_type = module_type
         self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.output_size = output_size
         self.device = device
         
         # input.shape = ( batch_size, seq_len, feature_size )
@@ -37,12 +36,7 @@ class Embedder(nn.Module):
         else:
             assert(False)
 
-        self.norm = nn.BatchNorm1d(seq_len)
-        # extra linear layer
-        # self.block = nn.Sequential(
-        #     nn.Linear(hidden_size, output_size),
-        #     nn.Sigmoid()
-        # )
+        #self.norm = nn.BatchNorm1d(seq_len)
 
 
     def forward(self, x: Tensor) -> Tensor:
@@ -51,17 +45,17 @@ class Embedder(nn.Module):
         '''
         batch_size = x.size()[0]
         h0 = zeros(self.num_layers, batch_size, self.hidden_size).to(self.device) # initial state
+        h0_final = zeros(self.num_layers, batch_size, self.output_size).to(self.device) # initial state
 
         if self.module_type == 'lstm':
             c0 = zeros(self.num_layers, batch_size, self.hidden_size).to(self.device)
             out, _ = self.module(x, (c0, h0)) # shape = ( batch_size, seq_len, hidden_size )
-            out, _ = self.final(out, (c0, h0)) # shape = ( batch_size, seq_len, hidden_size )
+            out, _ = self.final(out, (c0, h0_final)) # shape = ( batch_size, seq_len, hidden_size )
         else:
             out, _ = self.module(x, h0) # shape = ( batch_size, seq_len, hidden_size )
-            out, _ = self.final(out, h0) # shape = ( batch_size, seq_len, hidden_size )
+            out, _ = self.final(out, h0_final) # shape = ( batch_size, seq_len, hidden_size )
 
-        out = self.norm(out)
-
+        #out = self.norm(out)
         return out
 
 
@@ -70,7 +64,7 @@ class Embedder(nn.Module):
 '''
 import dataset_handling as dh
 import numpy as np
-from utils.data import DataLoader
+from torch.utils.data import DataLoader
 
 np.random.seed(0)
 p = 5
@@ -89,11 +83,11 @@ train_loader = DataLoader(
 )
 test_loader = train_loader
 
-module_type = 'lstm'
+module_type = 'gru'
 input_size = p
-hidden_size = 2
-num_layers = 2
-output_size = int(p/2)
+hidden_size = 4
+output_size = 2
+num_layers = 1
 
 
 model = Embedder(module_type=module_type, input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, output_size=output_size).to(device)
@@ -101,17 +95,16 @@ sequence = zeros((2, seq_len, p))
 sequence[0] = dataset[0]
 sequence[1] = dataset[1]
 
-print(sequence.size())
 out = model(sequence)
 print(out[1])
-
-
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=0.001)  
 '''
+
+
 
 # Train the model
 '''
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.SGD(model.parameters(), lr=0.001)  
 n_total_steps = len(train_loader)
 for epoch in range(num_epochs):
     for i, batch in enumerate(train_loader):  

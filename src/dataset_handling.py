@@ -90,8 +90,4 @@ class RealDataset(Dataset):
 
     def __len__(self):
         return self.n_seq
-    
 
-#dataset = SequenceDataset(p=3, N=100000, seq_type='wein', seq_len=25)
-#print(dataset[0])
-#wiener_process.plot_processes(dataset.get_whole_stream())
