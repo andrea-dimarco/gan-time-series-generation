@@ -1,7 +1,7 @@
 Notebooks/*
 Papers/*
 codebase/*
-backup/*
+timegan-backup/*
 *.csv
 
 # Byte-compiled / optimized / DLL files
