@@ -74,8 +74,7 @@ def get_rnd_corr_matrix(p):
 
 def plot_processes(samples, save_picture=False, show_plot=True):
     '''
-    For testing purposes ONLY!!
-     plots all the dimensions of the generated dataset.
+    Plots all the dimensions of the generated dataset.
     '''
     if save_picture or show_plot:
         for i in range(samples.shape[1]):

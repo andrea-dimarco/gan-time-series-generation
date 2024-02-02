@@ -1,9 +1,10 @@
 
 from torch import nn, Tensor, zeros
+from torch.nn.init import normal_
 
 
 class Embedder(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, device='cpu', num_layers=3, module_type='gru') -> None:
+    def __init__(self, input_size, hidden_size, output_size, var=0.02, num_layers=3, module_type='gru') -> None:
         '''
         The Embedder maps the input sequence to a lower dimensionality representation.
         Args:
@@ -22,7 +23,6 @@ class Embedder(nn.Module):
         self.num_final_layers = int(num_layers/3+1)
         self.hidden_size = hidden_size
         self.output_size = output_size
-        self.device = device
         
         # input.shape = ( batch_size, seq_len, feature_size )
         if self.module_type == 'rnn':
@@ -37,7 +37,15 @@ class Embedder(nn.Module):
         else:
             assert(False)
 
-        #self.norm = nn.BatchNorm1d(seq_len)
+        # initialize weights
+        for layer_p in self.module._all_weights:
+            for p in layer_p:
+                if 'weight' in p:
+                    normal_(self.module.__getattr__(p), 0.0, var)
+        for layer_p in self.final._all_weights:
+            for p in layer_p:
+                if 'weight' in p:
+                    normal_(self.final.__getattr__(p), 0.0, var)
 
 
     def forward(self, x: Tensor) -> Tensor:
@@ -45,11 +53,11 @@ class Embedder(nn.Module):
         Forward pass
         '''
         batch_size = x.size()[0]
-        h0 = zeros(self.num_layers, batch_size, self.hidden_size).to(self.device) # initial state
-        h0_final = zeros(self.num_final_layers, batch_size, self.output_size).to(self.device) # initial state
+        h0 = zeros(self.num_layers, batch_size, self.hidden_size) # initial state
+        h0_final = zeros(self.num_final_layers, batch_size, self.output_size) # initial state
 
         if self.module_type == 'lstm':
-            c0 = zeros(self.num_layers, batch_size, self.hidden_size).to(self.device)
+            c0 = zeros(self.num_layers, batch_size, self.hidden_size)
             out, _ = self.module(x, (c0, h0)) # shape = ( batch_size, seq_len, hidden_size )
             out, _ = self.final(out, (c0, h0_final)) # shape = ( batch_size, seq_len, output_size )
         else:

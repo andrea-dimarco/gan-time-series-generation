@@ -3,6 +3,7 @@ Papers/*
 codebase/*
 timegan-backup/*
 *.csv
+*.png
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
