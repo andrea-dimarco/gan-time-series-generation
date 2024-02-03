@@ -427,8 +427,7 @@ class TimeGAN(pl.LightningModule):
 
 
     def validation_step(
-        self, X_batch: torch.Tensor, Z_batch: torch.Tensor,
-        batch: Dict[str, torch.Tensor]=None
+        self, X_batch: torch.Tensor, Z_batch: torch.Tensor
     ) -> Dict[str, Union[torch.Tensor,Sequence[wandb.Image]]]:
         '''
         Implements a single validation step
@@ -466,13 +465,18 @@ class TimeGAN(pl.LightningModule):
         G_loss, S_loss = self.GS_loss(Y_fake, Y_fake_e, X_batch, H, H_hat_supervise, X_hat)
         E_loss, R_loss = self.ER_loss(X_batch, X_tilde, S_loss)
 
-        return { "E_loss": E_loss, "D_loss": D_loss, "G_loss": G_loss, "S_loss": S_loss, "R_loss": R_loss }
+        image = self.get_image_examples(X_batch[0], X_hat[0])
+
+        aggregated_loss = 1/5*(E_loss + D_loss + G_loss + S_loss + R_loss)
+
+        return { "val_loss": aggregated_loss, "image": image }
 
 
     def validation_epoch_end(
         self, outputs: List[Dict[str, torch.Tensor]]
     ) -> Dict[str, Union[torch.Tensor, Dict[str, Union[torch.Tensor,Sequence[wandb.Image]]]]]:
-        """ Implements the behaviouir at the end of a validation epoch
+        '''
+        Implements the behaviouir at the end of a validation epoch
 
         Currently it gathers all the produced examples and log them to wandb,
         limiting the logged examples to `hparams["log_images"]`.
@@ -480,25 +484,24 @@ class TimeGAN(pl.LightningModule):
         Then computes the mean of the losses and returns it.
         Updates the progress bar label with this loss.
 
-        :param outputs: a sequence that aggregates all the outputs of the validation steps
+        Arguments:
+            - outputs: a sequence that aggregates all the outputs of the validation steps
 
-        :returns: the aggregated validation loss and information to update the progress bar
-        """
-        images_AB = []
-        images_BA = []
+        Returns:
+            - The aggregated validation loss and information to update the progress bar
+        '''
+        images = []
 
         for x in outputs:
-            images_AB.extend(x["images_AB"])
-            images_BA.extend(x["images_BA"])
+            images.extend(x["image"])
 
-        images_AB = images_AB[: self.hparams["log_images"]]
-        images_BA = images_BA[: self.hparams["log_images"]]
+        images = images[: self.hparams["log_images"]]
 
         if not self.is_sanity:  # ignore if it not a real validation epoch. The first one is not.
-            print(f"Logged {len(images_AB)} images for each category.")
+            print(f"Logged {len(images)} images.")
 
             self.logger.experiment.log(
-                {f"images_AB": images_AB, f"images_BA": images_BA,},
+                {f"images": images },
                 step=self.global_step,
             )
         self.is_sanity = False
