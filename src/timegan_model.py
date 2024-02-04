@@ -226,30 +226,35 @@ class TimeGAN(pl.LightningModule):
         )
 
         # linear decay scheduler
-        assert(self.hparams["n_epochs"] > self.hparams["decay_epoch"]), "Decay must start BEFORE the training ends!"
-        linear_decay = lambda epoch: 1.0 - max(0, epoch-self.hparams["decay_epoch"]) / (self.hparams["n_epochs"]-self.hparams["decay_epoch"])   
+        #assert(self.hparams["n_epochs"] > self.hparams["decay_epoch"]), "Decay must start BEFORE the training ends!"
+        #linear_decay = lambda epoch: float(1.0 - max(0, epoch-self.hparams["decay_epoch"]) / (self.hparams["n_epochs"]-self.hparams["decay_epoch"]))
         
 
         # Schedulers 
-        lr_scheduler_E = torch.optim.lr_scheduler.LambdaLR(
+        lr_scheduler_E = torch.optim.lr_scheduler.LinearLR(
             E_optim,
-            lr_lambda=linear_decay
+            start_factor=1.0,
+            end_factor=0.1
         )
-        lr_scheduler_D = torch.optim.lr_scheduler.LambdaLR(
+        lr_scheduler_D = torch.optim.lr_scheduler.LinearLR(
             D_optim,
-            lr_lambda=linear_decay
+            start_factor=1.0,
+            end_factor=0.1
         )
-        lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(
+        lr_scheduler_G = torch.optim.lr_scheduler.LinearLR(
             G_optim,
-            lr_lambda=linear_decay
+            start_factor=1.0,
+            end_factor=0.1
         )
-        lr_scheduler_S = torch.optim.lr_scheduler.LambdaLR(
+        lr_scheduler_S = torch.optim.lr_scheduler.LinearLR(
             S_optim,
-            lr_lambda=linear_decay
+            start_factor=1.0,
+            end_factor=0.1
         )
-        lr_scheduler_R = torch.optim.lr_scheduler.LambdaLR(
+        lr_scheduler_R = torch.optim.lr_scheduler.LinearLR(
             R_optim,
-            lr_lambda=linear_decay
+            start_factor=1.0,
+            end_factor=0.1
         )
 
         return (
@@ -260,7 +265,7 @@ class TimeGAN(pl.LightningModule):
                 {"scheduler": lr_scheduler_G, "interval": "epoch", "frequency": 1},
                 {"scheduler": lr_scheduler_S, "interval": "epoch", "frequency": 1},
                 {"scheduler": lr_scheduler_R, "interval": "epoch", "frequency": 1}
-            ],
+            ]
         )
 
 
@@ -337,10 +342,10 @@ class TimeGAN(pl.LightningModule):
 
 
     def training_step(
-        self, X_batch: torch.Tensor,
-        Z_batch: torch.Tensor, optimizer_idx: int
+        self, batch: torch.Tensor, optimizer_idx: int
     ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
         '''
+        TODO: the loss must be different depending on the optimizer_idx!!
         Implements a single training step
 
         The parameter `optimizer_idx` identifies with optimizer "called" this training step,
@@ -348,8 +353,7 @@ class TimeGAN(pl.LightningModule):
         is currently performing the optimization
 
         Arguments:
-            - `X_batch`: current training batch of real sequences
-            - `Z_batch`: current training batch of noise
+            - `batch`: current training batch
             - `optimizer_idx`: the index of the optimizer in use, see the function `configure_optimizers`
 
         Returns:
@@ -357,6 +361,7 @@ class TimeGAN(pl.LightningModule):
                   logging and possibly the progress bar
         '''
         # Process the batch
+        X_batch, Z_batch = batch
         # Embedder
         H = self.Emb(X_batch)
 
@@ -426,8 +431,7 @@ class TimeGAN(pl.LightningModule):
         compare_sequences(real=real, fake=fake, save_img=True, show_graph=False, img_idx=idx)
 
 
-    def validation_step(
-        self, X_batch: torch.Tensor, Z_batch: torch.Tensor
+    def validation_step(self, batch: torch.Tensor
     ) -> Dict[str, Union[torch.Tensor,Sequence[wandb.Image]]]:
         '''
         Implements a single validation step
@@ -441,6 +445,8 @@ class TimeGAN(pl.LightningModule):
         Returns:
             - the loss and example images
         '''
+        # Process batch
+        X_batch, Z_batch = batch
         # Embedder
         H = self.Emb(X_batch)
 
@@ -510,18 +516,3 @@ class TimeGAN(pl.LightningModule):
         self.log_dict({"val_loss": avg_loss})
         return {"val_loss": avg_loss}
     
-
-
-### TESTING AREA
-'''
-from data_generation.wiener_process import get_weiner_process
-from pprint import pprint
-from dataclasses import asdict
-hparams = Config()
-p = 6
-N = 10**3
-#dh.train_test_split(torch.from_numpy(get_weiner_process(p=p, N=N)))
-train_file_path = "./datasets/training.csv"
-test_file_path = "./datasets/testing.csv"
-model = TimeGAN(hparams, train_file_path, test_file_path)
-'''
