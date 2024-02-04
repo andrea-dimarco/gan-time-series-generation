@@ -4,6 +4,8 @@ codebase/*
 timegan-backup/*
 *.csv
 *.png
+wandb/offline-run-*
+wandb/debug*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

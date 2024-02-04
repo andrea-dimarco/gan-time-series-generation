@@ -7,8 +7,11 @@ from dataclasses import dataclass
 @dataclass
 class Config:
 
-    n_epochs: int = 500  # number of epochs of training
-    decay_epoch: int = 100  # epoch from which to start lr decay
+    train_file_path = "../datasets/training.csv"
+    test_file_path = "../dataset/testing.csv"
+
+    n_epochs: int = 2  # number of epochs of training
+    decay_epoch: int = 1  # epoch from which to start lr decay
 
     batch_size: int = 32 # . . . . Amount of samples in each batch
     lr: float = 0.0002 # adam: learning rate

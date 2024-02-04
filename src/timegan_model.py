@@ -1,30 +1,26 @@
 
 
 # Libraries
-from typing import Sequence, List, Dict, Tuple, Optional, Any, Union, Mapping
+from typing import Sequence, List, Dict, Tuple, Any, Union, Mapping
 import itertools
 
 from dataclasses import asdict
 from pathlib import Path
 
 from torchvision.utils import make_grid
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 
 import torch
-import torchvision.transforms as transforms # this is not really needed
-from torch import nn, optim
+from torch import optim
 
 import wandb
 import pytorch_lightning as pl
-
-from torchvision import transforms
 
 # My modules
 import losses
 import dataset_handling as dh
 from utilities import ReplayBuffer
 from utilities import compare_sequences
-from lr_scheduler import LambdaLR
 from hyperparamets import Config
 from modules.discriminator import Discriminator
 from modules.embedder import Embedder
@@ -193,11 +189,11 @@ class TimeGAN(pl.LightningModule):
 
         We have five optimizers (and relative schedulers):
 
-        - `E_solver`: optimzer for the Embedder
-        - `D_solver`: optimizer for the Discriminator
-        - `G_solver`: optimizer for the Generator      
-        - `S_solver`: optimizer for the Supervisor
-        - `R_solver`: optimizer for the Recovery
+        - `E_optim`: optimzer for the Embedder
+        - `D_optim`: optimizer for the Discriminator
+        - `G_optim`: optimizer for the Generator      
+        - `S_optim`: optimizer for the Supervisor
+        - `R_optim`: optimizer for the Recovery
         
         - `lr_scheduler_E`: learning rate scheduler for the Embedder
         - `lr_scheduler_D`: learning rate scheduler for the Discriminator
@@ -213,47 +209,51 @@ class TimeGAN(pl.LightningModule):
         '''
 
         # Optimizers
-        E_solver = torch.optim.Adam(
+        E_optim = torch.optim.Adam(
             self.Emb.parameters(), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
         )
-        D_solver = torch.optim.Adam(
+        D_optim = torch.optim.Adam(
             self.Dis.parameters(), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
         )
-        G_solver = torch.optim.Adam(
+        G_optim = torch.optim.Adam(
             self.Gen.parameters(), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
         )
-        S_solver = torch.optim.Adam(
+        S_optim = torch.optim.Adam(
             self.Sup.parameters(), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
         )
-        R_solver = torch.optim.Adam(
+        R_optim = torch.optim.Adam(
             self.Rec.parameters(), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
         )
 
+        # linear decay scheduler
+        assert(self.hparams["n_epochs"] > self.hparams["decay_epoch"]), "Decay must start BEFORE the training ends!"
+        linear_decay = lambda epoch: 1.0 - max(0, epoch-self.hparams["decay_epoch"]) / (self.hparams["n_epochs"]-self.hparams["decay_epoch"])   
+        
 
         # Schedulers 
         lr_scheduler_E = torch.optim.lr_scheduler.LambdaLR(
-            E_solver,
-            lr_lambda=LambdaLR(self.hparams["n_epochs"], self.hparams["decay_epoch"]).step,
+            E_optim,
+            lr_lambda=linear_decay
         )
         lr_scheduler_D = torch.optim.lr_scheduler.LambdaLR(
-            D_solver,
-            lr_lambda=LambdaLR(self.hparams["n_epochs"], self.hparams["decay_epoch"]).step,
+            D_optim,
+            lr_lambda=linear_decay
         )
         lr_scheduler_G = torch.optim.lr_scheduler.LambdaLR(
-            G_solver,
-            lr_lambda=LambdaLR(self.hparams["n_epochs"], self.hparams["decay_epoch"]).step,
+            G_optim,
+            lr_lambda=linear_decay
         )
         lr_scheduler_S = torch.optim.lr_scheduler.LambdaLR(
-            S_solver,
-            lr_lambda=LambdaLR(self.hparams["n_epochs"], self.hparams["decay_epoch"]).step,
+            S_optim,
+            lr_lambda=linear_decay
         )
         lr_scheduler_R = torch.optim.lr_scheduler.LambdaLR(
-            R_solver,
-            lr_lambda=LambdaLR(self.hparams["n_epochs"], self.hparams["decay_epoch"]).step,
+            R_optim,
+            lr_lambda=linear_decay
         )
 
         return (
-            [E_solver, D_solver, G_solver, S_solver, R_solver],
+            [E_optim, D_optim, G_optim, S_optim, R_optim],
             [
                 {"scheduler": lr_scheduler_E, "interval": "epoch", "frequency": 1},
                 {"scheduler": lr_scheduler_D, "interval": "epoch", "frequency": 1},

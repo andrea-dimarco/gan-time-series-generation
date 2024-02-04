@@ -1,8 +1,7 @@
 '''
 This is the data module for the model
 '''
-
-from typing import Optional, Any, Callable#, Dict
+from typing import Optional, Any, Callable, Tuple#, Dict
 from torch.utils.data import Dataset
 from pathlib import Path
 from sklearn.preprocessing import MinMaxScaler
@@ -13,6 +12,7 @@ from torch import Tensor
 import numpy as np
 
 from data_generation import iid_sequence_generator, sine_process, wiener_process
+from hyperparamets import Config
 
 
 class SequenceDataset(Dataset):
@@ -23,6 +23,16 @@ class SequenceDataset(Dataset):
                  seq_len: int,
                  transform: Optional[Callable] = None,
                  ) -> None:
+        '''
+        Generate a dataset of sequences sampled from the selected process.
+
+        Arguments:
+            - `seq_type`:
+            - `p`: dimension of one sample
+            - `N`: number of SAMPLES (not sequences) to generate
+            - `seq_len`: length of the sequence to extract from the data stream
+            - `transform`: optional transformation to be done on the data 
+        '''
         super().__init__()
 
         assert(seq_type in ['wein','sine','iid'])
@@ -49,12 +59,19 @@ class SequenceDataset(Dataset):
             scaler.transform(xy)
             .reshape(-1, self.seq_len, self.p)
             ).type(torch.float32)
+        
+        # generate noise
+        self.noise_dim = Config().noise_dim
+        self.z = torch.from_numpy(
+            iid_sequence_generator.get_iid_sequence(p=self.noise_dim, N=self.N)
+            .reshape(-1, self.seq_len, self.noise_dim)
+            )
 
     def __getitem__(self, index) -> Any:
         sample = self.x[index]
         if self.transform:
             sample = self.transform(sample)
-        return sample
+        return sample, self.z[index]
 
     def __len__(self):
         return self.n_seq
@@ -64,6 +81,12 @@ class SequenceDataset(Dataset):
     
     def get_whole_stream(self):
         return self.x.reshape(self.N, self.p)
+    
+    def get_all_noise_sequences(self):
+        return self.z
+    
+    def get_whole_noise_stream(self):
+        return self.z.reshape(self.N, self.noise_dim)
     
 
 class RealDataset(Dataset):
@@ -76,9 +99,9 @@ class RealDataset(Dataset):
         Load the dataset from a given file containing the data stream.
 
         Arguments:
-            - file_path: the path of the file containing the data stream
-            - seq_len: length of the sequence to extract from the data stream
-            - transform: optional transformation to be done on the data
+            - `file_path`: the path of the file containing the data stream
+            - `seq_len`: length of the sequence to extract from the data stream
+            - `transform`: optional transformation to be done on the data
         '''
         super().__init__()
 
@@ -98,12 +121,19 @@ class RealDataset(Dataset):
             scaler.transform(xy)
             .reshape(-1, self.seq_len, self.p)
             ).type(torch.float32)
+        
+        # generate noise
+        self.noise_dim = Config().noise_dim
+        self.z = torch.from_numpy(
+            iid_sequence_generator.get_iid_sequence(p=self.noise_dim, N=self.n_samples)
+            .reshape(-1, self.seq_len, self.noise_dim)
+            )
 
-    def __getitem__(self, index) -> Any:
+    def __getitem__(self, index) -> Tuple[Tensor, Tensor]:
         sample = self.x[index]
         if self.transform:
             sample = self.transform(sample)
-        return sample
+        return sample, self.z[index]
 
     def __len__(self):
         return self.n_seq
@@ -112,7 +142,13 @@ class RealDataset(Dataset):
         return self.x
     
     def get_whole_stream(self):
-        return self.x.reshape(self.N, self.p)
+        return self.x.reshape(self.n_samples, self.p)
+    
+    def get_all_noise_sequences(self):
+        return self.z
+    
+    def get_whole_noise_stream(self):
+        return self.z.reshape(self.n_samples, self.noise_dim)
 
 
 def train_test_split(X: Tensor, split: float=0.7, folder_path: str="./datasets/", train_file_name: str="training", test_file_name: str="testing"):
@@ -120,11 +156,11 @@ def train_test_split(X: Tensor, split: float=0.7, folder_path: str="./datasets/"
     This function takes a tensor and saves it as two different csv files according to the given split parameter.
 
     Arguments:
-    - X: the tensor containing the data, dimensions must be ( num_samples, sample_dim )
-    - split: the perchentage of samples to keep for training
-    - folder_path: relative path to the folder where the .csv files will be stored
-    - train_file_name: name of the .csv file that will contain the training set
-    - test_file_name: name of the .csv file that will contain the testing set
+    - `X`: the tensor containing the data, dimensions must be ( num_samples, sample_dim )
+    - `split`: the perchentage of samples to keep for training
+    - `folder_path`: relative path to the folder where the .csv files will be stored
+    - `train_file_name`: name of the .csv file that will contain the training set
+    - `test_file_name`: name of the .csv file that will contain the testing set
     '''
     assert(split > 0 and split < 1)
     delimiter = int( X.size()[0] * split )

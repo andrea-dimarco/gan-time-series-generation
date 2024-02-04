@@ -11,7 +11,7 @@ import torch
 
 
 def discrimination_loss(Y_real: Tensor, Y_fake: Tensor,
-                        Y_fake_e: Tensor, gamma: float=0.1) -> torch.float32:
+                        Y_fake_e: Tensor, gamma: float=0.1) -> float:
     '''
     This function computes the loss for the DISCRIMINATOR module.
 
@@ -41,7 +41,7 @@ def discrimination_loss(Y_real: Tensor, Y_fake: Tensor,
 def generation_loss(Y_fake: Tensor, Y_fake_e: Tensor,
                     X: Tensor, H: Tensor,
                     H_hat_supervise: Tensor, X_hat: Tensor,
-                    gamma: float=0.1) -> Tuple[torch.float32, torch.float32]:
+                    gamma: float=0.1) -> Tuple[float, float]:
     '''
     This function computes the loss for the DISCRIMINATOR module.
 
@@ -86,7 +86,7 @@ def generation_loss(Y_fake: Tensor, Y_fake_e: Tensor,
 
 
 def reconstruction_loss(X: Tensor, X_tilde: Tensor,
-                        S_loss: torch.float32, gamma=0.1) -> Tuple[torch.float32, torch.float32]:
+                        S_loss: torch.float32, gamma=0.1) -> Tuple[float, float]:
     '''
     This function computes the loss for the DISCRIMINATOR module.
     
