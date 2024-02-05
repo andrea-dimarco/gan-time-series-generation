@@ -60,20 +60,20 @@ class ReplayBuffer:
     
 
 
-def plot_processes(samples, save_picture=False, show_plot=True):
+def plot_processes(samples, labels=None, save_picture=False, show_plot=True):
     '''
     Plots all the dimensions of the generated dataset.
     '''
     if save_picture or show_plot:
         for i in range(samples.shape[1]):
-            plt.plot(samples[:,i])
+            if labels is not None:
+                plt.plot(samples[:,i], label=labels[i])
+            else:
+                plt.plot(samples[:,i])
 
-        # naming the x axis 
-        plt.xlabel('time step') 
-        # naming the y axis 
-        plt.ylabel('Zt')
         # giving a title to my graph 
-        plt.title("Wiener Process plot")
+        if labels is not None:
+            plt.legend()
         
         # function to show the plot 
         if save_picture:
@@ -126,7 +126,6 @@ def compare_sequences(real: Tensor, fake: Tensor,
     
 
 
-
 class LambdaLR():
     def __init__(self, n_epochs: int, decay_start_epoch: int) -> None:
         '''
@@ -156,3 +155,30 @@ class LambdaLR():
         return 1.0 - max(0, epoch - self.decay_start_epoch) / (
             self.n_epochs - self.decay_start_epoch
         )
+    
+
+'''
+### TESTING AREA
+import torch
+import wandb
+from data_generation.iid_sequence_generator import get_iid_sequence as iid 
+
+def get_image_examples(real: torch.Tensor, fake: torch.Tensor):
+    example_images = []
+    for i in range(real.shape[0]):
+        couple = compare_sequences(real=real, fake=fake, save_img=False, show_graph=False)
+
+        example_images.append(
+            wandb.Image(couple, mode="RGB")
+        )
+    return example_images
+
+
+## CREATE TWO SEQUENCES
+p = 2
+seq_len = 10
+real = torch.from_numpy(iid(p=p, N=seq_len)).type(torch.float32).reshape(1,seq_len,p)
+fake = torch.from_numpy(iid(p=p, N=seq_len)).type(torch.float32).reshape(1,seq_len,p)
+
+get_image_examples(real,fake)
+'''

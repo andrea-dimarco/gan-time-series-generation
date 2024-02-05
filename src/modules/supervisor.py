@@ -37,10 +37,10 @@ class Supervisor(nn.Module):
             assert(False)
 
         # initialize weights
-        for layer_p in self.module._all_weights:
-            for p in layer_p:
-                if 'weight' in p:
-                    normal_(self.module.__getattr__(p), 0.0, var)
+        # for layer_p in self.module._all_weights:
+        #     for p in layer_p:
+        #         if 'weight' in p:
+        #             normal_(self.module.__getattr__(p), 0.0, var)
 
 
     def forward(self, x: Tensor) -> Tensor:

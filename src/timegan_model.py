@@ -46,7 +46,8 @@ class TimeGAN(pl.LightningModule):
     def __init__(self,
         hparams: Union[Dict, Config],
         train_file_path: Path,
-        test_file_path: Path
+        test_file_path: Path,
+        plot_losses: bool = False
     ) -> None:
         '''
         The TimeGAN model.
@@ -63,11 +64,24 @@ class TimeGAN(pl.LightningModule):
         self.train_file_path = train_file_path
         self.test_file_path  = test_file_path
 
+        # loss criteria
+        self.discrimination_loss = torch.nn.CrossEntropyLoss()
+        self.reconstruction_loss = torch.nn.MSELoss()
+
         # Expected shapes 
         self.data_dim = self.hparams["data_dim"]
         self.latent_space_dim = self.hparams["latent_space_dim"]
         self.noise_dim = self.hparams["noise_dim"]
         self.seq_len = self.hparams["seq_len"]
+
+        if plot_losses:
+            self.plot_losses = True
+            self.loss_history = []
+            self.val_loss_history = []
+        else:
+            self.plot_losses = False
+            self.loss_history = None
+            self.val_loss_history = None
 
         # Initialize Modules
         self.Gen = Generator(input_size=self.noise_dim,
@@ -227,19 +241,19 @@ class TimeGAN(pl.LightningModule):
 
         # Optimizers
         E_optim = torch.optim.Adam(
-            self.Emb.parameters(), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
+            self.Emb.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
         )
         D_optim = torch.optim.Adam(
-            self.Dis.parameters(), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
+            self.Dis.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
         )
         G_optim = torch.optim.Adam(
-            self.Gen.parameters(), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
+            self.Gen.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
         )
         S_optim = torch.optim.Adam(
-            self.Sup.parameters(), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
+            self.Sup.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
         )
         R_optim = torch.optim.Adam(
-            self.Rec.parameters(), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
+            self.Rec.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
         )
 
         # linear decay scheduler
@@ -307,65 +321,165 @@ class TimeGAN(pl.LightningModule):
         return module_list.index(module_name)
 
 
-    def D_loss(self, Y_real: torch.Tensor, Y_fake: torch.Tensor,
-               Y_fake_e: torch.Tensor) -> torch.Tensor:
+    def D_loss(self, X: torch.Tensor, Z: torch.Tensor,
+               w1:float=0.40, w2:float=0.40, w3:float=0.20
+    ) -> torch.Tensor:
         '''
         This function computes the loss for the DISCRIMINATOR module.
 
         Arguments:
-            - `Y_real`: Discriminator's results on the sequences of the EMBEDDINGS from the REAL data (H)
-            - `Y_fake`: Discriminator's results on the sequences resulted from the SUPERVISOR with the GENERATED sequence (H_hat)
-            - `Y_fake_e`: Discriminator's results on the GENERATED sequences (E_hat)
+            - `X`: batch of real sequences
+            - `Z`: batch of random noise sequences
 
         Returns:
-            - `D_loss`: float  the loss of the Discriminator module
+            - `D_loss`: tensor with one element containing the Discriminator module's loss
         '''
-        return losses.discrimination_loss(Y_real, Y_fake, Y_fake_e)
+        # Compute model outputs
+            # 1. Embedder
+        H = self.Emb(X)
+            # 2. Generator
+        E_hat = self.Gen(Z) 
+            # 3. Supervisor
+        H_hat = self.Sup(E_hat)
+            # 4. Discriminator
+        Y_fake   = self.Dis(H_hat)
+        Y_real   = self.Dis(H) 
+        Y_fake_e = self.Dis(E_hat)
 
 
-    def GS_loss(self, Y_fake: torch.Tensor, Y_fake_e: torch.Tensor,
-               X: torch.Tensor, H: torch.Tensor,
-               H_hat_supervise: torch.Tensor, X_hat: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        # Adversarial truths
+        valid = torch.zeros_like(Y_real) + torch.tensor([1,0])
+        fake  = torch.zeros_like(Y_real) + torch.tensor([0,1])
+
+
+        # Loss Components
+        loss_real   = self.discrimination_loss(valid, Y_real)
+        loss_fake   = self.discrimination_loss(fake,  Y_fake)
+        loss_fake_e = self.discrimination_loss(fake,  Y_fake_e)
+
+        return w1*loss_real + w2*loss_fake + w3*loss_fake_e
+
+
+    def G_loss(self, X: torch.Tensor, Z: torch.Tensor,
+                w1:float=0.25, w2:float=0.25, w3:float=0.25, w4:float=0.25
+    ) -> torch.Tensor:
         '''
-        This function computes the loss for the DISCRIMINATOR module.
+        This function computes the loss for the GENERATOR module.
 
         Arguments:
-            - `Y_fake`: Discriminator's results on the sequences resulted from the SUPERVISOR with the GENERATED sequence (H_hat)
-            - `Y_fake_e`: Discriminator's results on the GENERATED sequences (E_hat)
-            - `X`: The real data
-            - `H`: The sequence EMBEDDED from the real data (X)
-            - `H_hat_supervise`: The sequence rturned by the SUPERVISOR on the legitimate EMBEDDING (H) of the real data (X)
-            - `X_hat`: the sequence obtained by asking the RECOVERY module to reconstruct a feature space sequence from a SUPERVISED (H_hat), GENERATED (E_hat) sequence from noise (Z)
+            - `X`: batch of real sequences
+            - `Z`: batch of random noise sequences
 
         Returns:
-            - `G_loss`: float with the overall loss of the GENERATOR module
-            - `S_loss`: the supervised loss
+            - `G_loss`: tensor with one element containing the Generator module's loss
         '''
-        return losses.generation_loss(Y_fake, Y_fake_e, X, H, H_hat_supervise, X_hat)
+        # Compute model outputs
+            # 1. Embedder
+        H = self.Emb(X)
+            # 2. Generator
+        E_hat = self.Gen(Z) 
+            # 3. Supervisor
+        H_hat = self.Sup(E_hat)
+        H_hat_supervise = self.Sup(H)
+            # 4. Recovery
+        X_hat = self.Rec(H_hat)
+            # 5. Discriminator
+        Y_fake   = self.Dis(H_hat)
+        Y_fake_e = self.Dis(E_hat)
 
 
-    def ER_loss(self, X: torch.Tensor, X_tilde: torch.Tensor, S_loss: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        # Loss components
+            # 1. Adversarial truth
+        valid = torch.zeros_like(Y_fake) + torch.tensor([1,0])
+            # 2. Adversarial
+        GA_loss   = self.discrimination_loss(valid, Y_fake)
+        GA_loss_e = self.discrimination_loss(valid, Y_fake_e)
+            # 3. Supervised loss
+        S_loss    = self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
+            # 4. Deviation loss
+        G_loss_V1 = torch.mean(
+            torch.abs(
+                torch.sqrt(torch.var(X_hat, dim=0) + 1e-6) - torch.sqrt(torch.var(X, dim=0) + 1e-6)))
+        G_loss_V2 = torch.mean(
+            torch.abs((torch.mean(X_hat, dim=0)) - (torch.mean(X, dim=0))))
+        G_loss_V  = G_loss_V1 + G_loss_V2
+
+        return w1*GA_loss + w2*GA_loss_e + w3*torch.sqrt(S_loss) + w4*G_loss_V 
+    
+
+    def S_loss(self, X: torch.Tensor, Z: torch.Tensor
+    ) -> torch.Tensor:
         '''
-        This function computes the loss for the DISCRIMINATOR module.
+        This function computes the loss for the SUPERVISOR module.
 
         Arguments:
-            - `X`: The original data
-            - `X_tilde`: the data reconstructed by the RECOVERY module from the EMBEDDING (H) of the original data (X)
-            - `S_loss`: the supervised loss returned as the second result of generator_loss(...)
+            - `X`: batch of real sequences
+            - `Z`: batch of random noise sequences
 
         Returns:
-            - `E_loss`: float with the overall loss of the Embedder module
-            - `R_loss`: float with the overall loss for the Recovery module
+            - `S_loss`: tensor with one element containing the Supervisor module's loss
         '''
-        return losses.reconstruction_loss(X, X_tilde, S_loss)
+        # Compute model outputs
+            # 1. Embedder
+        H = self.Emb(X)
+            # 2. Supervisor
+        H_hat_supervise = self.Sup(H)
+
+        # Supervised loss
+        return self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
+
+
+    def E_loss(self, X: torch.Tensor,
+               w1: float=0.5, w2:float=0.5
+    ) -> torch.Tensor:
+        '''
+        This function computes the loss for the EMBEDDER module.
+
+        Arguments:
+            - `X`: batch of real sequences
+            - `Z`: batch of random noise sequences
+
+        Returns:
+            - `E_loss`: tensor with one element containing the Embedder module's loss
+        '''
+        # Compute model outputs
+            # 1. Embedder
+        H = self.Emb(X)
+            # 2. Supervisor
+        H_hat_supervise = self.Sup(H)
+            # 3. Recovery
+        X_tilde = self.Rec(H)
+
+        # Loss Components
+        R_loss = self.reconstruction_loss(X, X_tilde)
+        S_loss = self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
+
+        return w1*torch.sqrt(R_loss) + w2*S_loss
+    
+
+    def R_loss(self, X: torch.Tensor
+    ) -> torch.Tensor:
+        '''
+        This function computes the loss for the RECOVERY module.
+
+        Arguments:
+            - `X`: batch of real sequencess
+
+        Returns:
+            - `R_loss`: tensor with one element containing the Recovery module's loss
+        '''
+        # Compute model outputs
+            # 1. Embedder
+        H = self.Emb(X)
+            # 2. Recovery
+        X_tilde = self.Rec(H)
+
+        return self.reconstruction_loss(X, X_tilde)
 
 
     def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> Dict[str, torch.Tensor]:
         '''
-        TODO: the loss must be different depending on the optimizer_idx!!
         Implements a single training step
 
         The parameter `optimizer_idx` identifies with optimizer "called" this training step,
@@ -380,65 +494,54 @@ class TimeGAN(pl.LightningModule):
             - the total loss for the current training step, together with other information for the
                   logging and possibly the progress bar
         '''
-        # Process the batch
-        X_batch, Z_batch = batch
-        # Embedder
-        H = self.Emb(X_batch)
-
-        # Generator
-        E_hat = self.Gen(Z_batch) 
-
-        # Supervisor
-        H_hat = self.Sup(E_hat)
-        H_hat_supervise = self.Sup(H)
-
-        # Recovery
-        X_tilde = self.Rec(H)
-        X_hat = self.Rec(H_hat)
-
-        # Discriminator
-        Y_fake   = self.Dis(H_hat)
-        Y_real   = self.Dis(H) 
-        Y_fake_e = self.Dis(E_hat)
-
-        # Losses
-        D_loss = self.D_loss(Y_real, Y_fake,
-                             Y_fake_e)
-        
-        G_loss, S_loss = self.GS_loss(Y_fake, Y_fake_e,
-                                      X_batch, H,
-                                      H_hat_supervise, X_hat)
-        
-        E_loss, R_loss = self.ER_loss(X_batch, X_tilde,
-                                      S_loss)
-
-        loss_dict = { "E_loss": E_loss, "D_loss": D_loss, "G_loss": G_loss, "S_loss": S_loss, "R_loss": R_loss }
-        self.log_dict(loss_dict)
-
         # Get optimizers
         E_optim, D_optim, G_optim, S_optim, R_optim = self.optimizers()
-        
-        # Freeze gradients
-        E_optim.zero_grad()
+
+        # Process the batch
+        X_batch, Z_batch = batch
+
+
+        # Discriminator Loss
+        D_loss = self.D_loss(X=X_batch, Z=Z_batch)
+        D_loss.backward()
+        D_optim.step()
         D_optim.zero_grad()
+        
+
+        # Generator Loss
+        G_loss = self.G_loss(X=X_batch, Z=Z_batch) 
+        G_loss.backward()
+        G_optim.step()
         G_optim.zero_grad()
+        
+
+        # Supervisor Loss
+        S_loss = self.S_loss(X=X_batch, Z=Z_batch)
+        S_loss.backward()
+        S_optim.step()
         S_optim.zero_grad()
+        
+
+        # Embedder Loss
+        E_loss = self.E_loss(X=X_batch)
+        E_loss.backward()
+        E_optim.step()
+        E_optim.zero_grad()
+
+
+        # Recovery Loss
+        R_loss = self.R_loss(X=X_batch)
+        R_loss.backward()
+        R_optim.step()
         R_optim.zero_grad()
 
-        # Backward pass
-        E_loss.backward(retain_graph=True)
-        D_loss.backward(retain_graph=True)
-        G_loss.backward(retain_graph=True)
-        S_loss.backward(retain_graph=True)
-        R_loss.backward()
+        # Log results
+        loss_dict = { "E_loss": E_loss, "D_loss": D_loss, "G_loss": G_loss, "S_loss": S_loss, "R_loss": R_loss }
+        self.log_dict(loss_dict)
+        if self.plot_losses:
+            self.loss_history.append([E_loss.item(), D_loss.item(), G_loss.item(), S_loss.item(), R_loss.item()])            
 
-        # Update weights
-        E_optim.step()
-        D_optim.step()
-        G_optim.step()
-        S_optim.step()
-        R_optim.step()
-
+        return loss_dict
 
     def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int,
     ) -> Dict[str, Union[torch.Tensor,Sequence[wandb.Image]]]:
@@ -456,35 +559,31 @@ class TimeGAN(pl.LightningModule):
         '''
         # Process batch
         X_batch, Z_batch = batch
-        # Embedder
-        H = self.Emb(X_batch)
-
-        # Generator
-        E_hat = self.Gen(Z_batch) 
-
-        # SUpervisor
-        H_hat = self.Sup(E_hat)
-        H_hat_supervise = self.Sup(H)
-
-        # Recovery
-        X_tilde = self.Rec(H)
-        X_hat = self.Rec(H_hat)
-
-        # Discriminator
-        Y_fake   = self.Dis(H_hat)
-        Y_real   = self.Dis(H) 
-        Y_fake_e = self.Dis(E_hat)
+        
 
         # Losses
-        D_loss = self.D_loss(Y_real, Y_fake, Y_fake_e)
-        G_loss, S_loss = self.GS_loss(Y_fake, Y_fake_e, X_batch, H, H_hat_supervise, X_hat)
-        E_loss, R_loss = self.ER_loss(X_batch, X_tilde, S_loss)
+        D_loss = self.D_loss(X=X_batch, Z=Z_batch)
+        G_loss = self.G_loss(X=X_batch, Z=Z_batch)
+        S_loss = self.S_loss(X=X_batch, Z=Z_batch)
+        E_loss = self.E_loss(X=X_batch)
+        R_loss = self.R_loss(X=X_batch)
 
-        image = self.get_image_examples(X_batch[0], X_hat[0])
 
-        aggregated_loss = 1/5*(E_loss + D_loss + G_loss + S_loss + R_loss)
+        # visualize result
+        image = self.get_image_examples(X_batch[0], self.Rec(self.Sup(self.Gen(Z_batch)))[0])
 
+
+        # Validation loss
+        w_e = 0.20
+        w_d = 0.20
+        w_g = 0.20
+        w_s = 0.20
+        w_r = 0.20
+        aggregated_loss = w_e*E_loss + w_d*D_loss + w_g*G_loss + w_s*S_loss + w_r*R_loss
         self.log("val_loss", aggregated_loss)
+
+        if self.plot_losses:
+            self.val_loss_history.append([aggregated_loss.item()])
 
         return { "val_loss": aggregated_loss, "image": image }
 
@@ -495,21 +594,18 @@ class TimeGAN(pl.LightningModule):
         Given real and "fake" translated images, produce a nice coupled images to log
 
         Arguments:
-            - `real`: the real sequence with shape [batch, seq_len, data_dim]
-            - `fake`: the fake sequence with shape [batch, seq_len, data_dim]
+            - `real`: the real sequence with shape [seq_len, data_dim]
+            - `fake`: the fake sequence with shape [seq_len, data_dim]
 
         Returns:
             - A sequence of wandb.Image to log and visualize the performance
         '''
         example_images = []
-        for i in range(real.shape[0]):
-            couple = torch.from_numpy(
-                ut.compare_sequences(real=real, fake=fake, save_img=False, show_graph=False)
-            ).type(torch.float32)
+        couple = ut.compare_sequences(real=real, fake=fake, save_img=False, show_graph=False)
 
-            example_images.append(
-                wandb.Image(couple.permute(1, 2, 0).detach().cpu().numpy(), mode="RGB")
-            )
+        example_images.append(
+            wandb.Image(couple, mode="RGB")
+        )
         return example_images
 
 
@@ -517,7 +613,7 @@ class TimeGAN(pl.LightningModule):
         '''
         Save the image of the plot
         '''
-        compare_sequences(real=real, fake=fake, save_img=True, show_graph=False, img_idx=idx)
+        ut.compare_sequences(real=real, fake=fake, save_img=True, show_graph=False, img_idx=idx)
 
 
     def validation_epoch_end(self, outputs: List[Dict[str, torch.Tensor]]

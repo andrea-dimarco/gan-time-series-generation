@@ -10,8 +10,8 @@ class Config:
     train_file_path = "./datasets/training.csv"
     test_file_path = "./datasets/testing.csv"
 
-    n_epochs: int = 10 # number of epochs of training
-    decay_epoch: int = 5 # epoch from which to start lr decay
+    n_epochs: int = 5 # number of epochs of training
+    decay_epoch: int = 0 # epoch from which to start lr decay
 
     batch_size: int = 32 # . . . . Amount of samples in each batch
     lr: float = 0.0002 # adam: learning rate
@@ -50,11 +50,11 @@ class Config:
 
     dis_alpha: float = 0.2 #. . . . . . . Parameter for the discriminator's LeakyReLU (currently unused)
 
-    gen_num_layers: int = 3 # . . . . . . Number of layers for the generator
-    dis_num_layers: int = 3 # . . . . . . Number of layers for the discriminator
-    emb_num_layers: int = 3 # . . . . . . Number of layers for the embedder
-    rec_num_layers: int = 3 # . . . . . . Number of layers for the recovery
-    sup_num_layers: int = 3 # . . . . . . Number of layers for the supervisor
+    gen_num_layers: int = 2 # . . . . . . Number of layers for the generator
+    dis_num_layers: int = 2 # . . . . . . Number of layers for the discriminator
+    emb_num_layers: int = 2 # . . . . . . Number of layers for the embedder
+    rec_num_layers: int = 2 # . . . . . . Number of layers for the recovery
+    sup_num_layers: int = 2 # . . . . . . Number of layers for the supervisor
 
     # Can be 'gru', 'lstm' or 'lstmLN
     gen_module_type: str = 'gru' #. . . . Module type for the generator

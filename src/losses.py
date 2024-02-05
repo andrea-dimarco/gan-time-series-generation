@@ -3,8 +3,7 @@ This script contains the functions of the different losses.
 '''
 
 from torch import Tensor
-from torch.nn import CrossEntropyLoss
-from torch.nn import MSELoss
+from torch.nn import CrossEntropyLoss, MSELoss
 from typing import Tuple
 import torch
 
@@ -96,7 +95,7 @@ def reconstruction_loss(X: Tensor, X_tilde: Tensor,
     Arguments:
         - X: The original data
         - X_tilde: the data reconstructed by the RECOVERY module from the EMBEDDING (H) of the original data (X)
-        - GS_loss: the supervised loss returned as the second result of generator_loss(...)
+        - S_loss: the supervised loss returned as the second result of generator_loss(...)
 
     Returns:
         - E_loss: float with the overall loss of the Discriminator module
@@ -105,8 +104,7 @@ def reconstruction_loss(X: Tensor, X_tilde: Tensor,
     loss_f = MSELoss()
 
     R_loss = loss_f(X, X_tilde)
-    L = 10*torch.sqrt(R_loss)
-    E_loss = L + gamma*S_loss
+    E_loss = 10*torch.sqrt(R_loss) + gamma*S_loss
 
     return E_loss, R_loss
 

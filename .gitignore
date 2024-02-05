@@ -5,7 +5,7 @@ timegan-backup/*
 *.csv
 *.png
 wandb/offline-run-*
-wandb/debug*
+wandb/*
 *(2024)
 
 # Byte-compiled / optimized / DLL files
