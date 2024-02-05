@@ -113,6 +113,3 @@ def get_weiner_process(p=100,N=1000):
     Get the generated samples as a numpy matrix.
     '''
     return multi_dim_wiener_process(p=p, N=N)
-
-
-save_weiner_process(p=2, N=1000)

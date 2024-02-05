@@ -397,17 +397,18 @@ class TimeGAN(pl.LightningModule):
             # 3. Supervised loss
         S_loss    = self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
             # 4. Deviation loss
-        G_loss_V1 = torch.mean(
+        G_loss_mu = torch.mean(
             torch.abs(
                 torch.sqrt(torch.var(X_hat, dim=0) + 1e-6) - torch.sqrt(torch.var(X, dim=0) + 1e-6)))
-        G_loss_V2 = torch.mean(
+        G_loss_std = torch.mean(
             torch.abs((torch.mean(X_hat, dim=0)) - (torch.mean(X, dim=0))))
-        G_loss_V  = G_loss_V1 + G_loss_V2
+        G_loss_V  = G_loss_mu + G_loss_std
 
         return w1*GA_loss + w2*GA_loss_e + w3*torch.sqrt(S_loss) + w4*G_loss_V 
     
 
-    def S_loss(self, X: torch.Tensor, Z: torch.Tensor
+    def S_loss(self, X: torch.Tensor, Z: torch.Tensor,
+               w1:float=0.4, w2:float=0.6
     ) -> torch.Tensor:
         '''
         This function computes the loss for the SUPERVISOR module.
@@ -422,11 +423,28 @@ class TimeGAN(pl.LightningModule):
         # Compute model outputs
             # 1. Embedder
         H = self.Emb(X)
-            # 2. Supervisor
+            # 2. Generator
+        E_hat = self.Gen(Z) 
+            # 3. Supervisor
+        H_hat = self.Sup(E_hat)
         H_hat_supervise = self.Sup(H)
 
+
+        # Loss components
+            # 1. Reconstruction Loss
+        Rec_loss = self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
+            # 2. Deviation Loss
+        Dev_loss_mu = torch.mean(
+            torch.abs(
+                torch.sqrt(torch.var(H_hat, dim=0) + 1e-6) - torch.sqrt(torch.var(H_hat_supervise, dim=0) + 1e-6)))
+        Dev_loss_std = torch.mean(
+            torch.abs((torch.mean(H_hat, dim=0)) - (torch.mean(H_hat_supervise, dim=0))))
+        Dev_loss = Dev_loss_mu + Dev_loss_std
+
+        print(f"\n\n-----Difference Dev - Rec = {w2*Dev_loss.item()-w1*Rec_loss.item()}\n\n")
+
         # Supervised loss
-        return self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
+        return w1*Rec_loss + w2*Dev_loss
 
 
     def E_loss(self, X: torch.Tensor,
@@ -543,6 +561,7 @@ class TimeGAN(pl.LightningModule):
 
         return loss_dict
 
+
     def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int,
     ) -> Dict[str, Union[torch.Tensor,Sequence[wandb.Image]]]:
         '''
@@ -611,7 +630,7 @@ class TimeGAN(pl.LightningModule):
 
     def save_image_examples(self, real: torch.Tensor, fake: torch.Tensor, idx: int=0) -> None:
         '''
-        Save the image of the plot
+        Save the image of the plot with the real and fake sequence
         '''
         ut.compare_sequences(real=real, fake=fake, save_img=True, show_graph=False, img_idx=idx)
 

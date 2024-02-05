@@ -13,8 +13,7 @@ accelerator = "cuda" if cuda.is_available() else "cpu"
 # Instantiate the model
 timegan = TimeGAN(hparams=hparams,
                     train_file_path=hparams.train_file_path,
-                    test_file_path=hparams.test_file_path,
-                    plot_losses=True
+                    test_file_path=hparams.test_file_path
                     )
 
 # Define the logger
@@ -33,18 +32,6 @@ trainer = Trainer(logger=wandb_logger,
 
 # Start the training
 trainer.fit(timegan)
-
-import utilities as ut
-import numpy as np
-
-np.random.seed(0)
-
-labels = ["E_loss", "D_loss", "G_loss", "S_loss", "R_loss"]
-# Plot losses
-history = np.array(timegan.loss_history)
-ut.plot_processes(history, labels, show_plot=True, save_picture=True)
-# Plot validation loss
-ut.plot_processes(np.array(timegan.val_loss_history),["validation"], show_plot=True, save_picture=False)
 
 # Log the trained model
 trainer.save_checkpoint('timegan.pth')
