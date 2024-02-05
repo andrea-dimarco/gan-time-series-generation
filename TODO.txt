@@ -5,16 +5,13 @@ TO DO:
     - predictive_metrics
 
 - review Weights & Biases -> [here](https://www.youtube.com/playlist?list=PLD80i8An1OEGajeVo15ohAQYF1Ttle0lk)
-- review cool plots for the model
+- make cool plots for the model
 - Translate TimeGAN
     - to Jupyter
     - to PyTorch
 - setup standard format for the model
-- make the model
-    - should the recovery module have a linear layer at the end? and how to implement it?
+    - try to use the automatic optimization instead of the custom made one
 - train the model (on better hardware)
-    - home computer
-    - colab pro 
 
 - uninstall
     - wandb
@@ -29,4 +26,4 @@ TO DO:
     - 2) Related work section
     - 3) Method section, where the main methodology used for the project is described
     - 4) experimental Results (qualitative, quantitative, or both
-    - 5) \textbf{discussion and conclusions}.
+    - 5) discussion and conclusions.
