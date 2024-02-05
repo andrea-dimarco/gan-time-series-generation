@@ -7,35 +7,37 @@ from dataclasses import dataclass
 @dataclass
 class Config:
 
-    train_file_path = "../datasets/training.csv"
-    test_file_path = "../dataset/testing.csv"
+    train_file_path = "./datasets/training.csv"
+    test_file_path = "./datasets/testing.csv"
 
-    n_epochs: int = 2  # number of epochs of training
-    decay_epoch: int = 1  # epoch from which to start lr decay
+    n_epochs: int = 10 # number of epochs of training
+    decay_epoch: int = 5 # epoch from which to start lr decay
 
     batch_size: int = 32 # . . . . Amount of samples in each batch
     lr: float = 0.0002 # adam: learning rate
     b1: float = 0.5  # . adam: decay of first order momentum of gradient
     b2: float = 0.999 #. adam: decay of first order momentum of gradient
 
-    #n_residual_blocks: int = 6  # number of residual blocks in generator # original 9
     lambda_cyc: float = 10.0  # cycle loss weight
     lambda_id: float = 5.0  # identity loss weight
 
-    n_cpu: int = 8  # number of cpu threads to use for the dataloaders
+    n_cpu: int = 12  # number of cpu threads to use for the dataloaders
 
-    log_sequences: int = min(25, 100) # number of sequences to log
+    log_images: int = 25 # . . . . . . . number of images to logg
 
     alpha: float = 1.0 # . . . . . . . . Regularization coefficient 
 
     ## Data loading
-    dataset_name: str = 'wein'  # . . which dataset to use
-                                # . . . 'wein': runs a number or weiner processes with random mutual correlations
-                                # . . . 'sine': runs independent sine processes wih random phases
-                                # . . . 'iid': samples iids from a multivariate with random covariance matrix
-                                # . . . 'real': gets the samples from a real dataset
+    dataset_name: str = 'wein' #. . . . . which dataset to use
+                               #. . . . . . wein: runs a number or weiner processes 
+                               #. . . . . . . . . . with random mutual correlations
+                               #. . . . . . sine: runs independent sine processes wih random phases
+                               #. . . . . . iid: samples iids from a multivariate
+                               #. . . . . . . . . . with random covariance matrix
+                               #. . . . . . real: gets the samples from a csv file
     num_samples: int = 10**4 #. . . . . . Number of samples to generate (if any)
     data_dim: int = 6 # . . . . . . . . . Dimension of one generated sample (if any)
+    seq_len: int = 20 # . . . . . . . . . Length of the input sequences
 
     # Network dimensions
     latent_space_dim: int = 2 # . . . . . Dimension of the latent space sample
@@ -61,6 +63,5 @@ class Config:
     rec_module_type: str = 'gru' #. . . . Module type for the recovery
     sup_module_type: str = 'gru' #. . . . Module type for the supervisor
 
-    seq_len: int = 20 #. . . . . . . . . . Max length of the input sequence
 
-    metric_iteration: int = 5 #. . . . . . Number of iteration for each metric
+    metric_iteration: int = 5 # . . . . . Number of iteration for each metric

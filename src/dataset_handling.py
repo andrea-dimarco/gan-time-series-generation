@@ -65,7 +65,7 @@ class SequenceDataset(Dataset):
         self.z = torch.from_numpy(
             iid_sequence_generator.get_iid_sequence(p=self.noise_dim, N=self.N)
             .reshape(-1, self.seq_len, self.noise_dim)
-            )
+            ).type(torch.float32)
 
     def __getitem__(self, index) -> Any:
         sample = self.x[index]
@@ -94,6 +94,7 @@ class RealDataset(Dataset):
                  file_path: Path,
                  seq_len: int,
                  transform: Optional[Callable] = None,
+                 verbose: bool = True
                  ) -> None:
         '''
         Load the dataset from a given file containing the data stream.
@@ -127,7 +128,10 @@ class RealDataset(Dataset):
         self.z = torch.from_numpy(
             iid_sequence_generator.get_iid_sequence(p=self.noise_dim, N=self.n_samples)
             .reshape(-1, self.seq_len, self.noise_dim)
-            )
+            ).type(torch.float32)
+
+        if verbose:
+            print(f"Loaded dataset with {self.n_samples} of dimension {self.p}, resulted in {self.n_seq} sequences.")
 
     def __getitem__(self, index) -> Tuple[Tensor, Tensor]:
         sample = self.x[index]

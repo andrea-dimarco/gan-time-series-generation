@@ -1,10 +1,10 @@
 
 from timegan_model import TimeGAN
-from hyperparamets import Config
 from pytorch_lightning.loggers.wandb import WandbLogger
 from torch import cuda
 from pytorch_lightning import Trainer
 import wandb
+from hyperparamets import Config
 
 # Parameters
 hparams = Config()
@@ -18,7 +18,7 @@ timegan = TimeGAN(hparams=hparams,
 
 # Define the logger
 # https://www.wandb.com/articles/pytorch-lightning-with-weights-biases.
-wandb_logger = WandbLogger(project="CycleGAN Tutorial 2021", log_model=True)
+wandb_logger = WandbLogger(project="TimeGAN PyTorch (2024)", log_model=True)
 
 ## Currently it does not log the model weights, there is a bug in wandb and/or lightning.
 wandb_logger.experiment.watch(timegan, log='all', log_freq=100)
@@ -27,7 +27,6 @@ wandb_logger.experiment.watch(timegan, log='all', log_freq=100)
 trainer = Trainer(logger=wandb_logger,
                   max_epochs=hparams.n_epochs,
                   accelerator=accelerator,
-                  limit_val_batches=.2,
                   val_check_interval=0.25
                   )
 

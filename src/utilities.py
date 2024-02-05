@@ -82,7 +82,9 @@ def plot_processes(samples, save_picture=False, show_plot=True):
             plt.show()
 
 
-def compare_sequences(real: Tensor, fake: Tensor, real_label="Real sequence", fake_label="Fake Sequence", show_graph=False, save_img=True, img_idx=0):
+def compare_sequences(real: Tensor, fake: Tensor,
+                      real_label="Real sequence", fake_label="Fake Sequence",
+                      show_graph=False, save_img=False, img_idx=0):
     '''
     Plots two graphs with the two sequences.
 
@@ -96,31 +98,31 @@ def compare_sequences(real: Tensor, fake: Tensor, real_label="Real sequence", fa
     Returns:
         - numpy matrix with the pixel values for the image
     '''
-    if show_graph or save_img:
-        fig, (ax0, ax1) = plt.subplots(2, 1, layout='constrained')
-        ax0.set_xlabel('Time-Steps')
+    fig, (ax0, ax1) = plt.subplots(2, 1, layout='constrained')
+    ax0.set_xlabel('Time-Steps')
 
-        for i in range(real.shape[1]):
-            ax0.plot(real[:,i])
-        ax0.set_ylabel(real_label)
+    for i in range(real.shape[1]):
+        ax0.plot(real[:,i])
+    ax0.set_ylabel(real_label)
 
-        for i in range(fake.shape[1]):
-            ax1.plot(fake[:,i])
-        ax1.set_ylabel(fake_label)
+    for i in range(fake.shape[1]):
+        ax1.plot(fake[:,i])
+    ax1.set_ylabel(fake_label)
 
-        if show_graph:
-            plt.show()
-        if save_img:
-            plt.savefig(f"double-plot{img_idx}.png")
+    if show_graph:
+        plt.show()
+    if save_img:
+        plt.savefig(f"double-plot{img_idx}.png")
 
 
-        # return picture as array
-        canvas = fig.canvas
-        canvas.draw()  # Draw the canvas, cache the renderer
+    # return picture as array
+    canvas = fig.canvas
+    plt.close()
+    canvas.draw()  # Draw the canvas, cache the renderer
 
-        image_flat = np.frombuffer(canvas.tostring_rgb(), dtype='uint8')  # (H * W * 3,)
-        # NOTE: reversed converts (W, H) from get_width_height to (H, W)
-        return image_flat.reshape(*reversed(canvas.get_width_height()), 3)  # (H, W, 3)
+    image_flat = np.frombuffer(canvas.tostring_rgb(), dtype='uint8')  # (H * W * 3,)
+    # NOTE: reversed converts (W, H) from get_width_height to (H, W)
+    return image_flat.reshape(*reversed(canvas.get_width_height()), 3)  # (H, W, 3)
     
 
 

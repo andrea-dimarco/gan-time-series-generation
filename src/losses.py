@@ -11,7 +11,8 @@ import torch
 
 
 def discrimination_loss(Y_real: Tensor, Y_fake: Tensor,
-                        Y_fake_e: Tensor, gamma: float=0.1) -> float:
+                        Y_fake_e: Tensor, gamma: float=0.1
+) -> torch.Tensor:
     '''
     This function computes the loss for the DISCRIMINATOR module.
 
@@ -41,7 +42,8 @@ def discrimination_loss(Y_real: Tensor, Y_fake: Tensor,
 def generation_loss(Y_fake: Tensor, Y_fake_e: Tensor,
                     X: Tensor, H: Tensor,
                     H_hat_supervise: Tensor, X_hat: Tensor,
-                    gamma: float=0.1) -> Tuple[float, float]:
+                    gamma: float=0.1
+) -> Tuple[torch.Tensor, torch.Tensor]:
     '''
     This function computes the loss for the DISCRIMINATOR module.
 
@@ -86,7 +88,8 @@ def generation_loss(Y_fake: Tensor, Y_fake_e: Tensor,
 
 
 def reconstruction_loss(X: Tensor, X_tilde: Tensor,
-                        S_loss: torch.float32, gamma=0.1) -> Tuple[float, float]:
+                        S_loss: torch.float32, gamma=0.1
+) -> Tuple[torch.Tensor, torch.Tensor]:
     '''
     This function computes the loss for the DISCRIMINATOR module.
     
@@ -107,73 +110,3 @@ def reconstruction_loss(X: Tensor, X_tilde: Tensor,
 
     return E_loss, R_loss
 
-
-'''
-## testing area
-from data_generation.iid_sequence_generator import get_iid_sequence
-import dataset_handling as dh
-import modules.discriminator
-import modules.embedder
-import modules.generator
-import modules.recovery
-import modules.supervisor
-
-from torch.utils.data import DataLoader
-
-p = 10
-N = 100
-seq_len = 20
-
-batch_size = 2
-data_size = p
-latent_space_size = int(data_size/3)
-noise_size = 1
-
-# Modules
-discriminator = modules.discriminator.Discriminator(input_size=latent_space_size, hidden_size=latent_space_size)
-embedder = modules.embedder.Embedder(input_size=data_size, hidden_size=(latent_space_size*2), output_size=latent_space_size)
-generator = modules.generator.Generator(input_size=noise_size, hidden_size=(noise_size*2), output_size=latent_space_size)
-recovery = modules.recovery.Recovery(input_size=latent_space_size, hidden_size=(latent_space_size*2), output_size=data_size)
-supervisor = modules.supervisor.Supervisor(input_size=latent_space_size, seq_len=seq_len)
-
-# Data
-X = dh.SequenceDataset(seq_type='wein', p=p, N=N, seq_len=seq_len)
-Z = dh.SequenceDataset(seq_type='iid', p=noise_size, N=N, seq_len=seq_len)
-
-X_batch = torch.zeros((batch_size, seq_len, p))
-Z_batch = torch.zeros((batch_size, seq_len, noise_size))
-
-for i in range(batch_size):
-    X_batch[i] = X[i]
-    Z_batch[i] = Z[i]
-
-
-# Embedder
-H = embedder(X_batch)
-
-# Generator
-E_hat = generator(Z_batch) 
-
-# SUpervisor
-H_hat = supervisor(E_hat)
-H_hat_supervise = supervisor(H)
-
-# Recovery
-X_tilde = recovery(H)
-X_hat = recovery(H_hat)
-
-# Discriminator
-Y_fake   = discriminator(H_hat)
-Y_real   = discriminator(H) 
-Y_fake_e = discriminator(E_hat)
-
-
-# Losses
-D_loss = discriminator_loss(Y_real, Y_fake, Y_fake_e)
-G_loss, S_loss = generator_loss(Y_fake, Y_fake_e, X_batch, H, H_hat_supervise, X_hat)
-E_loss = embedder_loss(X_batch, X_tilde, S_loss)
-
-
-# Visualize
-print(f"Discriminator: {D_loss}\nGenerator: {G_loss}\nSupervisor: {S_loss}\nEmbedder: {E_loss}")
-'''

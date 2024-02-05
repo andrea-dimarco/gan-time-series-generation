@@ -19,8 +19,7 @@ import pytorch_lightning as pl
 # My modules
 import losses
 import dataset_handling as dh
-from utilities import ReplayBuffer
-from utilities import compare_sequences
+import utilities as ut
 from hyperparamets import Config
 from modules.discriminator import Discriminator
 from modules.embedder import Embedder
@@ -44,11 +43,10 @@ The main methods of every Lightning model are:
 - `validation_epoch_end`: receive in input an aggregation of all the output of the `validation_step`. It is useful to compute metrics and log examples.
 '''
 class TimeGAN(pl.LightningModule):
-    def __init__(
-        self,
+    def __init__(self,
         hparams: Union[Dict, Config],
         train_file_path: Path,
-        test_file_path: Path,
+        test_file_path: Path
     ) -> None:
         '''
         The TimeGAN model.
@@ -102,13 +100,18 @@ class TimeGAN(pl.LightningModule):
                                  )
 
         # Image buffers
-        self.fake_buffer = ReplayBuffer()
+        #TODO: actually use this
+        self.fake_buffer = ut.ReplayBuffer()
 
         # Forward pass cache to avoid re-doing some computation
         self.fake = None
 
         # It avoids wandb logging when lighting does a sanity check on the validation
         self.is_sanity = True
+
+        # Prevents Lightning from performing the optimization steps
+        self.automatic_optimization = False
+        #self.opt, self.schedulers = self.configure_optimizers()
 
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
@@ -138,6 +141,20 @@ class TimeGAN(pl.LightningModule):
         return X_hat
 
 
+    def backward(self, loss):
+        '''
+        Performs the backward step from the given losses
+        
+        Arguments:
+            - `loss`: disctionary with the losses
+        '''
+        loss["E_loss"].backward()
+        loss["D_loss"].backward()
+        loss["G_loss"].backward()
+        loss["S_loss"].backward()
+        loss["R_loss"].backward()
+
+
     def train_dataloader(self) -> DataLoader:
         '''
         Create the train set DataLoader
@@ -152,7 +169,7 @@ class TimeGAN(pl.LightningModule):
             ),
             batch_size=self.hparams["batch_size"],
             shuffle=True,
-            num_workers=2,
+            num_workers=self.hparams["n_cpu"],
             pin_memory=True,
         )
         return train_loader
@@ -175,15 +192,15 @@ class TimeGAN(pl.LightningModule):
             ),
             batch_size=self.hparams["batch_size"],
             shuffle=False,
-            num_workers=2,
+            num_workers=self.hparams["n_cpu"],
             pin_memory=True,
         )
         return test_loader
 
 
-    def configure_optimizers(
-        self,
-    ) -> Tuple[Sequence[optim.Optimizer], Sequence[Dict[str, Any]]]:
+    def configure_optimizers(self
+    ) -> Tuple[optim.Optimizer, optim.Optimizer, optim.Optimizer, optim.Optimizer, optim.Optimizer]:
+    #) -> Tuple[Sequence[optim.Optimizer], Sequence[Dict[str, Any]]]:
         '''
         Instantiate the optimizers and schedulers.
 
@@ -231,45 +248,47 @@ class TimeGAN(pl.LightningModule):
         
 
         # Schedulers 
-        lr_scheduler_E = torch.optim.lr_scheduler.LinearLR(
-            E_optim,
-            start_factor=1.0,
-            end_factor=0.1
-        )
-        lr_scheduler_D = torch.optim.lr_scheduler.LinearLR(
-            D_optim,
-            start_factor=1.0,
-            end_factor=0.1
-        )
-        lr_scheduler_G = torch.optim.lr_scheduler.LinearLR(
-            G_optim,
-            start_factor=1.0,
-            end_factor=0.1
-        )
-        lr_scheduler_S = torch.optim.lr_scheduler.LinearLR(
-            S_optim,
-            start_factor=1.0,
-            end_factor=0.1
-        )
-        lr_scheduler_R = torch.optim.lr_scheduler.LinearLR(
-            R_optim,
-            start_factor=1.0,
-            end_factor=0.1
-        )
+        # lr_scheduler_E = torch.optim.lr_scheduler.LinearLR(
+        #     E_optim,
+        #     start_factor=1.0,
+        #     end_factor=0.1
+        # )
+        # lr_scheduler_D = torch.optim.lr_scheduler.LinearLR(
+        #     D_optim,
+        #     start_factor=1.0,
+        #     end_factor=0.1
+        # )
+        # lr_scheduler_G = torch.optim.lr_scheduler.LinearLR(
+        #     G_optim,
+        #     start_factor=1.0,
+        #     end_factor=0.1
+        # )
+        # lr_scheduler_S = torch.optim.lr_scheduler.LinearLR(
+        #     S_optim,
+        #     start_factor=1.0,
+        #     end_factor=0.1
+        # )
+        # lr_scheduler_R = torch.optim.lr_scheduler.LinearLR(
+        #     R_optim,
+        #     start_factor=1.0,
+        #     end_factor=0.1
+        # )
 
-        return (
-            [E_optim, D_optim, G_optim, S_optim, R_optim],
-            [
-                {"scheduler": lr_scheduler_E, "interval": "epoch", "frequency": 1},
-                {"scheduler": lr_scheduler_D, "interval": "epoch", "frequency": 1},
-                {"scheduler": lr_scheduler_G, "interval": "epoch", "frequency": 1},
-                {"scheduler": lr_scheduler_S, "interval": "epoch", "frequency": 1},
-                {"scheduler": lr_scheduler_R, "interval": "epoch", "frequency": 1}
-            ]
-        )
+        # return (
+        #     [E_optim, D_optim, G_optim, S_optim, R_optim],
+        #     [
+        #         {"scheduler": lr_scheduler_E, "interval": "epoch", "frequency": 1},
+        #         {"scheduler": lr_scheduler_D, "interval": "epoch", "frequency": 1},
+        #         {"scheduler": lr_scheduler_G, "interval": "epoch", "frequency": 1},
+        #         {"scheduler": lr_scheduler_S, "interval": "epoch", "frequency": 1},
+        #         {"scheduler": lr_scheduler_R, "interval": "epoch", "frequency": 1}
+        #     ]
+        # )
+        return E_optim, D_optim, G_optim, S_optim, R_optim
 
 
-    def get_opt_idx(module_name: str) -> int:
+    def get_opt_idx(self, module_name: str
+    ) -> int:
         '''
         Given the module name returns the index of the optimizer.
         The names are:
@@ -288,8 +307,8 @@ class TimeGAN(pl.LightningModule):
         return module_list.index(module_name)
 
 
-    def D_loss(Y_real: torch.Tensor, Y_fake: torch.Tensor,
-               Y_fake_e: torch.Tensor) -> float:
+    def D_loss(self, Y_real: torch.Tensor, Y_fake: torch.Tensor,
+               Y_fake_e: torch.Tensor) -> torch.Tensor:
         '''
         This function computes the loss for the DISCRIMINATOR module.
 
@@ -304,9 +323,10 @@ class TimeGAN(pl.LightningModule):
         return losses.discrimination_loss(Y_real, Y_fake, Y_fake_e)
 
 
-    def GS_loss(Y_fake: torch.Tensor, Y_fake_e: torch.Tensor,
+    def GS_loss(self, Y_fake: torch.Tensor, Y_fake_e: torch.Tensor,
                X: torch.Tensor, H: torch.Tensor,
-               H_hat_supervise: torch.Tensor, X_hat: torch.Tensor) -> Tuple[float, float]:
+               H_hat_supervise: torch.Tensor, X_hat: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         '''
         This function computes the loss for the DISCRIMINATOR module.
 
@@ -325,7 +345,8 @@ class TimeGAN(pl.LightningModule):
         return losses.generation_loss(Y_fake, Y_fake_e, X, H, H_hat_supervise, X_hat)
 
 
-    def ER_loss(X: torch.Tensor, X_tilde: torch.Tensor, S_loss: torch.float32) -> Tuple[float, float]:
+    def ER_loss(self, X: torch.Tensor, X_tilde: torch.Tensor, S_loss: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         '''
         This function computes the loss for the DISCRIMINATOR module.
 
@@ -341,9 +362,8 @@ class TimeGAN(pl.LightningModule):
         return losses.reconstruction_loss(X, X_tilde, S_loss)
 
 
-    def training_step(
-        self, batch: torch.Tensor, optimizer_idx: int
-    ) -> Dict[str, Union[torch.Tensor, Dict[str, torch.Tensor]]]:
+    def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
+    ) -> Dict[str, torch.Tensor]:
         '''
         TODO: the loss must be different depending on the optimizer_idx!!
         Implements a single training step
@@ -354,7 +374,7 @@ class TimeGAN(pl.LightningModule):
 
         Arguments:
             - `batch`: current training batch
-            - `optimizer_idx`: the index of the optimizer in use, see the function `configure_optimizers`
+            - `batch_idx`: the index of the batch being processed
 
         Returns:
             - the total loss for the current training step, together with other information for the
@@ -392,46 +412,35 @@ class TimeGAN(pl.LightningModule):
         E_loss, R_loss = self.ER_loss(X_batch, X_tilde,
                                       S_loss)
 
-        self.log_dict({
-                "E_loss": E_loss,
-                "D_loss": D_loss,
-                "G_loss": G_loss,
-                "S_loss": S_loss,
-                "R_loss": R_loss
-            }
-        )
-        return { "E_loss": E_loss, "D_loss": D_loss, "G_loss": G_loss, "S_loss": S_loss, "R_loss": R_loss }
+        loss_dict = { "E_loss": E_loss, "D_loss": D_loss, "G_loss": G_loss, "S_loss": S_loss, "R_loss": R_loss }
+        self.log_dict(loss_dict)
+
+        # Get optimizers
+        E_optim, D_optim, G_optim, S_optim, R_optim = self.optimizers()
+        
+        # Freeze gradients
+        E_optim.zero_grad()
+        D_optim.zero_grad()
+        G_optim.zero_grad()
+        S_optim.zero_grad()
+        R_optim.zero_grad()
+
+        # Backward pass
+        E_loss.backward(retain_graph=True)
+        D_loss.backward(retain_graph=True)
+        G_loss.backward(retain_graph=True)
+        S_loss.backward(retain_graph=True)
+        R_loss.backward()
+
+        # Update weights
+        E_optim.step()
+        D_optim.step()
+        G_optim.step()
+        S_optim.step()
+        R_optim.step()
 
 
-    def get_image_examples(self,
-                           real: torch.Tensor, fake: torch.Tensor):
-        '''
-        Given real and "fake" translated images, produce a nice coupled images to log
-
-        Arguments:
-            - `real`: the real sequence with shape [batch, seq_len, data_dim]
-            - `fake`: the fake sequence with shape [batch, seq_len, data_dim]
-
-        Returns:
-            - A sequence of wandb.Image to log and visualize the performance
-        '''
-        example_images = []
-        for i in range(real.shape[0]):
-            couple = compare_sequences(real=real, fake=fake, save_img=False, show_graph=False)
-            example_images.append(
-                wandb.Image(couple.permute(1, 2, 0).detach().cpu().numpy(), mode="RGB")
-            )
-        return example_images
-
-
-    def save_image_examples(self, real: torch.Tensor, fake: torch.Tensor, idx: int=0) -> None:
-        '''
-        Save the image of the plot
-        '''
-        compare_sequences(real=real, fake=fake, save_img=True, show_graph=False, img_idx=idx)
-
-
-    def validation_step(self, batch: torch.Tensor
+    def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int,
     ) -> Dict[str, Union[torch.Tensor,Sequence[wandb.Image]]]:
         '''
         Implements a single validation step
@@ -475,11 +484,43 @@ class TimeGAN(pl.LightningModule):
 
         aggregated_loss = 1/5*(E_loss + D_loss + G_loss + S_loss + R_loss)
 
+        self.log("val_loss", aggregated_loss)
+
         return { "val_loss": aggregated_loss, "image": image }
 
 
-    def validation_epoch_end(
-        self, outputs: List[Dict[str, torch.Tensor]]
+    def get_image_examples(self,
+                           real: torch.Tensor, fake: torch.Tensor):
+        '''
+        Given real and "fake" translated images, produce a nice coupled images to log
+
+        Arguments:
+            - `real`: the real sequence with shape [batch, seq_len, data_dim]
+            - `fake`: the fake sequence with shape [batch, seq_len, data_dim]
+
+        Returns:
+            - A sequence of wandb.Image to log and visualize the performance
+        '''
+        example_images = []
+        for i in range(real.shape[0]):
+            couple = torch.from_numpy(
+                ut.compare_sequences(real=real, fake=fake, save_img=False, show_graph=False)
+            ).type(torch.float32)
+
+            example_images.append(
+                wandb.Image(couple.permute(1, 2, 0).detach().cpu().numpy(), mode="RGB")
+            )
+        return example_images
+
+
+    def save_image_examples(self, real: torch.Tensor, fake: torch.Tensor, idx: int=0) -> None:
+        '''
+        Save the image of the plot
+        '''
+        compare_sequences(real=real, fake=fake, save_img=True, show_graph=False, img_idx=idx)
+
+
+    def validation_epoch_end(self, outputs: List[Dict[str, torch.Tensor]]
     ) -> Dict[str, Union[torch.Tensor, Dict[str, Union[torch.Tensor,Sequence[wandb.Image]]]]]:
         '''
         Implements the behaviouir at the end of a validation epoch
