@@ -38,7 +38,7 @@ class SequenceDataset(Dataset):
 
         # generate sequence
         if seq_type == 'wein':
-            xy = wiener_process.get_weiner_process(p=p, N=N)
+            xy = wiener_process.multi_dim_wiener_process(p=p, N=N)
         elif seq_type == 'sine':
             xy = sine_process.get_sine_process(p=p, N=N)
         else:

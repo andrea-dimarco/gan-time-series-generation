@@ -156,29 +156,3 @@ class LambdaLR():
             self.n_epochs - self.decay_start_epoch
         )
     
-
-'''
-### TESTING AREA
-import torch
-import wandb
-from data_generation.iid_sequence_generator import get_iid_sequence as iid 
-
-def get_image_examples(real: torch.Tensor, fake: torch.Tensor):
-    example_images = []
-    for i in range(real.shape[0]):
-        couple = compare_sequences(real=real, fake=fake, save_img=False, show_graph=False)
-
-        example_images.append(
-            wandb.Image(couple, mode="RGB")
-        )
-    return example_images
-
-
-## CREATE TWO SEQUENCES
-p = 2
-seq_len = 10
-real = torch.from_numpy(iid(p=p, N=seq_len)).type(torch.float32).reshape(1,seq_len,p)
-fake = torch.from_numpy(iid(p=p, N=seq_len)).type(torch.float32).reshape(1,seq_len,p)
-
-get_image_examples(real,fake)
-'''

@@ -6,11 +6,7 @@ TO DO:
 
 - review Weights & Biases -> [here](https://www.youtube.com/playlist?list=PLD80i8An1OEGajeVo15ohAQYF1Ttle0lk)
 - make cool plots for the model
-- Translate TimeGAN
-    - to Jupyter
-    - to PyTorch
-- setup standard format for the model
-    - try to use the automatic optimization instead of the custom made one
+- setup learning rate schedulers
 - train the model (on better hardware)
 
 - uninstall

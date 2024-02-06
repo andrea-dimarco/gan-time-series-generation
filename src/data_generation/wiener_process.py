@@ -6,25 +6,26 @@ This script simulates a wiener process of chosen dimensions
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
-from os import system
 
 
-def weiner_process(N=1000):
+def weiner_process(N=1000, lower_bound=0.0, upper_bound=1.0, alpha=0.01):
     '''
-    This function samples a Weiner process
+    This function samples a Weiner process 
+     and makes sure it stays withing bounds
 
     Args:
         - N: Number of samples to generate
     Returns
         - Zt: numpy array with the process' realizations
     '''
+    assert(upper_bound >= lower_bound), "upper_bound must be greater than lower_bound"
     Zt = np.zeros(N)
     for i in range(1, N):
-        Zt[i] = Zt[i-1] + np.random.normal()
+        Zt[i] = max( lower_bound, min( upper_bound, Zt[i-1]+alpha*np.random.normal() ))
     return Zt
 
 
-def multi_dim_wiener_process(p=100, N=1000):
+def multi_dim_wiener_process(p=100, N=1000, corr=None):
     '''
     This function generates a dataset from a multi dimensional wiener process
      sampled from a randomly generated correlation matrix between the dimensions. 
@@ -37,12 +38,17 @@ def multi_dim_wiener_process(p=100, N=1000):
     '''
     brownian_motions = np.zeros((N,p))
     for i in range(p):
-        brownian_motions[:,i] += weiner_process(N)#.reshape(N,1)
+        brownian_motions[:,i] += weiner_process(N)
+        print(f"Computed {i+1}-th weiner process.")
 
-    corr = get_rnd_corr_matrix(p)
+    if corr is not None:
+        assert(corr.shape[0] == corr.shape[1]), "The provided correlation matrix has mismatching shapes."
+        assert(corr.shape[0] == p), "The provided correlation matrix has the wrong shape."
+    else:
+        corr = get_rnd_corr_matrix(p)
 
     # every dimention is a linear combination between the other dimensions
-    M = np.einsum('kj,ik -> ij', corr, brownian_motions)
+    M = np.einsum('kj,ik -> ij', corr, brownian_motions/2)
 
     return M
 
@@ -68,13 +74,14 @@ def get_rnd_corr_matrix(p):
             a = np.random.uniform(0.0, last_upper_bound)
             if corr[i][j] == 0:
                 corr[i][j] = a
-                corr[j][i] = a
+                corr[j][i] = 1-a
             last_upper_bound -= corr[i][j]
         corr[i][p-1] = last_upper_bound
+    
     return corr
 
 
-def plot_processes(samples, save_picture=False, show_plot=True):
+def plot_process(samples, save_picture=False, show_plot=True):
     '''
     Plots all the dimensions of the generated dataset.
     '''
@@ -109,12 +116,5 @@ def save_weiner_process(p=100, N=1000, folder_path="./", dataset_name="generated
     df.to_csv(dataset_path, index=False, header=False)
 
     if show_plot:
-        plot_processes(samples)
-
-
-def get_weiner_process(p=100,N=1000):
-    '''
-    Get the generated samples as a numpy matrix.
-    '''
-    return multi_dim_wiener_process(p=p, N=N)
+        plot_process(samples)
 
