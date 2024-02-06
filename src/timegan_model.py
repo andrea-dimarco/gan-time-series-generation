@@ -35,7 +35,7 @@ class TimeGAN(pl.LightningModule):
         hparams: Union[Dict, Config],
         train_file_path: Path,
         test_file_path: Path,
-        plot_losses: bool = False
+        plot_losses: bool=False
     ) -> None:
         '''
         The TimeGAN model.
@@ -44,6 +44,7 @@ class TimeGAN(pl.LightningModule):
             - `hparams`: dictionary that contains all the hyperparameters
             - `train_file_path`: Path to the folder that contains the training stream
             - `test_file_path`: Path to the file that contains the testing stream
+            - `plot_losses`: Saves the losses in the `loss_history` and `val_loss_history`
         '''
         super().__init__()
         self.save_hyperparameters(asdict(hparams) if not isinstance(hparams, Mapping) else hparams)
@@ -110,9 +111,6 @@ class TimeGAN(pl.LightningModule):
 
         # It avoids wandb logging when lighting does a sanity check on the validation
         self.is_sanity = True
-
-        # Prevents Lightning from performing the optimization steps
-        #self.automatic_optimization = False
 
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:

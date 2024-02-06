@@ -1,7 +1,7 @@
 '''
 This is the data module for the model
 '''
-from typing import Optional, Any, Callable, Tuple#, Dict
+from typing import Optional, Callable, Tuple
 from torch.utils.data import Dataset
 from pathlib import Path
 from sklearn.preprocessing import MinMaxScaler
@@ -154,27 +154,25 @@ class RealDataset(Dataset):
         return self.z.reshape(self.n_samples, self.noise_dim)
 
 
-def train_test_split(X: torch.Tensor, split: float=0.7, folder_path: str="./datasets/", train_file_name: str="training", test_file_name: str="testing"):
+def train_test_split(X, split: float=0.7, train_file_name: str="./datasets/training.csv", test_file_name: str="./datasets/testing.csv"):
     '''
     This function takes a tensor and saves it as two different csv files according to the given split parameter.
 
     Arguments:
     - `X`: the tensor containing the data, dimensions must be ( num_samples, sample_dim )
     - `split`: the perchentage of samples to keep for training
-    - `folder_path`: relative path to the folder where the .csv files will be stored
     - `train_file_name`: name of the .csv file that will contain the training set
     - `test_file_name`: name of the .csv file that will contain the testing set
     '''
     assert(split > 0 and split < 1)
-    delimiter = int( X.size()[0] * split )
+    print(X.shape[0])
+    delimiter = int( X.shape[0] * split )
 
     # Train
-    dataset_path = folder_path + train_file_name + ".csv"
     df = pd.DataFrame(X[:delimiter,:])
-    df.to_csv(dataset_path, index=False, header=False)
+    df.to_csv(train_file_name, index=False, header=False)
 
     # Test
-    dataset_path = folder_path + test_file_name + ".csv"
     df = pd.DataFrame(X[delimiter:,:])
-    df.to_csv(dataset_path, index=False, header=False)
+    df.to_csv(test_file_name, index=False, header=False)
 

@@ -15,7 +15,6 @@ def count_parameters(model: Module) -> int:
   return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-
 class ReplayBuffer:
     def __init__(self, max_size: int = 50) -> None:
         '''
@@ -58,7 +57,6 @@ class ReplayBuffer:
 
         return cat(to_return)
     
-
 
 def plot_processes(samples, labels=None, save_picture=False, show_plot=True):
     '''
@@ -124,7 +122,6 @@ def compare_sequences(real: Tensor, fake: Tensor,
     # NOTE: reversed converts (W, H) from get_width_height to (H, W)
     return image_flat.reshape(*reversed(canvas.get_width_height()), 3)  # (H, W, 3)
     
-
 
 class LambdaLR():
     def __init__(self, n_epochs: int, decay_start_epoch: int) -> None:

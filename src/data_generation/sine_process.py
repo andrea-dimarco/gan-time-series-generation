@@ -12,12 +12,12 @@ def sine_data_generation(p, N, seq_len):
     Sine data generation.
   
     Args:
-        - N: the number of sequences
-        - seq_len: sequence length of a sequence
-        - p: feature dimensions
+        - `p`: feature dimensions
+        - `N`: the number of sequences
+        - `seq_len`: length of a sequence
     
     Returns:
-        - data: generated data
+        - generated data
     '''  
     assert(p>=2)
     # Initialize the output
@@ -49,8 +49,12 @@ def sine_data_generation(p, N, seq_len):
 
 def plot_process(samples, save_picture=False, show_plot=True):
     '''
-    For testing purposes ONLY!!
-     plots all the dimensions of the generated dataset.
+    Plots all the dimensions of the provided dataset.
+
+    Arguments:
+        - `samples`: 2D matrix with the data stream, dimensions are (num_samples, sample_size)
+        - `save_picture`: if to save the picture of the graph or not
+        - `show_plot`: if to display the plot or not
     '''
     if save_picture or show_plot:
         for i in range(samples.shape[1]):
@@ -70,18 +74,32 @@ def plot_process(samples, save_picture=False, show_plot=True):
             plt.show()
 
 
-def save_sine_process(p=100, N=1000, folder_path="./", dataset_name="generated_stream"):
+def save_sine_process(p=100, N=1000, file_path="./generated_stream.csv"):
+    '''
+    Generate and save the sine process data stream into a csv file.
+
+    Arguments:
+        - `p`: dimension of a single sample
+        - `N`: number of samples to take
+        - `file_path`: path of the csv file where to save the stream
+    '''
     # Generate stream
     samples = sine_data_generation(p=p, N=N, seq_len=1).squeeze()
 
     # Save it
-    dataset_path = folder_path + dataset_name + ".csv"
     df = pd.DataFrame(samples)
-    df.to_csv(dataset_path, index=False, header=False)
+    df.to_csv(file_path, index=False, header=False)
 
 
-def get_sine_process(p,N):
+def get_sine_process(p=100, N=1000):
     '''
     Generate and return the sine process data without dividing it into sequences.
+
+    Arguments:
+        - `p`: dimension of a single sample
+        - `N`: number of samples to take
+
+    Returns:
+        Numpy array with the dimension (N,p)
     '''
     return sine_data_generation(p=p, N=N, seq_len=1).squeeze()

@@ -14,9 +14,10 @@ def weiner_process(N=1000, lower_bound=0.0, upper_bound=1.0, alpha=0.01):
      and makes sure it stays withing bounds
 
     Args:
-        - N: Number of samples to generate
+        - `N`: Number of samples to generate
+
     Returns
-        - Zt: numpy array with the process' realizations
+        - `Zt`: numpy array with the process' realizations
     '''
     assert(upper_bound >= lower_bound), "upper_bound must be greater than lower_bound"
     Zt = np.zeros(N)
@@ -31,10 +32,11 @@ def multi_dim_wiener_process(p=100, N=1000, corr=None):
      sampled from a randomly generated correlation matrix between the dimensions. 
 
     Args:
-        - p: Data dimension
-        - N: Number of samples to generate
+        - `p`: Data dimension
+        - `N`: Number of samples to generate
+
     Returns:
-        - M: matrix with the p-dimensional samples obtained by linear combination between the p weiner processes and the correlation matrix
+        - `M`: matrix with the p-dimensional samples obtained by linear combination between the p weiner processes and the correlation matrix
     '''
     brownian_motions = np.zeros((N,p))
     for i in range(p):
@@ -61,9 +63,10 @@ def get_rnd_corr_matrix(p):
      the processes will be more "influenced" by the others.
 
     Args:
-        - p: Data dimension
+        - `p`: Data dimension
+
     Returns:
-        - corr: matrix with the processes correlations
+        - `corr`: matrix with the processes correlations
     '''
     corr = np.zeros((p,p))
 
@@ -84,6 +87,11 @@ def get_rnd_corr_matrix(p):
 def plot_process(samples, save_picture=False, show_plot=True):
     '''
     Plots all the dimensions of the generated dataset.
+
+    Arguments:
+        - `samples`: matrix with the data stream of dimension (N, p)
+        - `save_picture`: if to save the picture of the graphs or not
+        - `show_plot`: if to display the plot
     '''
     if save_picture or show_plot:
         for i in range(samples.shape[1]):
@@ -103,17 +111,21 @@ def plot_process(samples, save_picture=False, show_plot=True):
             plt.show()
 
 
-def save_weiner_process(p=100, N=1000, folder_path="./", dataset_name="generated_stream", show_plot=False):
+def save_wiener_process(p=100, N=1000, file_path="./generated_stream.csv", show_plot=False):
     '''
     Save the generated samples as a csv file.
+
+    Arguments:
+        - `p`: data dimension
+        - `N`: number of samples to generate
+        - `file_path`: csv file path were to save the stream
     '''
     # Generate stream
     samples = multi_dim_wiener_process(p=p, N=N)
 
     # Save it
-    dataset_path = folder_path + dataset_name + ".csv"
     df = pd.DataFrame(samples)
-    df.to_csv(dataset_path, index=False, header=False)
+    df.to_csv(file_path, index=False, header=False)
 
     if show_plot:
         plot_process(samples)

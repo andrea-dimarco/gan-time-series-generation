@@ -29,14 +29,16 @@ class Config:
     alpha: float = 1.0 # . . . . . . . . Regularization coefficient 
 
     ## Data loading
-    dataset_name: str = 'wein' # . . . . Which dataset to use
-                               # . . . . . . wein: runs a number or weiner processes 
-                               # . . . . . . . . . with random mutual correlations
+    dataset_name: str = 'wien' # . . . . Which dataset to use
+                               # . . . . . . real: gets the samples from a csv file
                                # . . . . . . sine: runs independent sine processes wih random phases
                                # . . . . . . iid: samples iids from a multivariate
+                               # . . . . . . cov: samples iids from a multivariate
                                # . . . . . . . . . with random covariance matrix
-                               # . . . . . . real: gets the samples from a csv file
-    num_samples: int = 10**4 # . . . . . Number of samples to generate (if any)
+                               # . . . . . . wien: runs a number or wiener processes 
+                               # . . . . . . . . . with random mutual correlations
+    train_test_split: float = 0.7 #. . . Percentage of samples to keep in the training set 
+    num_samples: int = 10**5 # . . . . . Number of samples to generate (if any)
     data_dim: int = 6 #. . . . . . . . . Dimension of one generated sample (if any)
     seq_len: int = 20 #. . . . . . . . . Length of the input sequences
 
