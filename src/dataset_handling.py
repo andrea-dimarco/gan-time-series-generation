@@ -7,7 +7,6 @@ from pathlib import Path
 from sklearn.preprocessing import MinMaxScaler
 import torch
 import pandas as pd
-from torch import Tensor
 
 import numpy as np
 
@@ -53,7 +52,7 @@ class SequenceDataset(Dataset):
         self.transform: Optional[Callable] = transform
 
         # transform data
-        scaler = MinMaxScaler(feature_range=(-1,1)) # preserves the data distribution
+        scaler = MinMaxScaler(feature_range=(0,1)) # preserves the data distribution
         scaler.fit(xy)
         self.x = torch.from_numpy(
             scaler.transform(xy)
@@ -67,13 +66,13 @@ class SequenceDataset(Dataset):
             .reshape(-1, self.seq_len, self.noise_dim)
             ).type(torch.float32)
 
-    def __getitem__(self, index) -> Any:
+    def __getitem__(self, index) -> Tuple[torch.Tensor, torch.Tensor]:
         sample = self.x[index]
         if self.transform:
             sample = self.transform(sample)
         return sample, self.z[index]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.n_seq
     
     def get_all_sequences(self):
@@ -116,7 +115,7 @@ class RealDataset(Dataset):
         self.transform: Optional[Callable] = transform
 
         # transform data
-        scaler = MinMaxScaler(feature_range=(-1,1)) # preserves the data distribution
+        scaler = MinMaxScaler(feature_range=(0,1)) # preserves the data distribution
         scaler.fit(xy)
         self.x = torch.from_numpy(
             scaler.transform(xy)
@@ -133,13 +132,13 @@ class RealDataset(Dataset):
         if verbose:
             print(f"Loaded dataset with {self.n_samples} of dimension {self.p}, resulted in {self.n_seq} sequences.")
 
-    def __getitem__(self, index) -> Tuple[Tensor, Tensor]:
+    def __getitem__(self, index) -> Tuple[torch.Tensor, torch.Tensor]:
         sample = self.x[index]
         if self.transform:
             sample = self.transform(sample)
         return sample, self.z[index]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.n_seq
     
     def get_all_sequences(self):
@@ -155,7 +154,7 @@ class RealDataset(Dataset):
         return self.z.reshape(self.n_samples, self.noise_dim)
 
 
-def train_test_split(X: Tensor, split: float=0.7, folder_path: str="./datasets/", train_file_name: str="training", test_file_name: str="testing"):
+def train_test_split(X: torch.Tensor, split: float=0.7, folder_path: str="./datasets/", train_file_name: str="training", test_file_name: str="testing"):
     '''
     This function takes a tensor and saves it as two different csv files according to the given split parameter.
 

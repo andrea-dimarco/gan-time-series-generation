@@ -33,6 +33,7 @@ def save_cov_sequence(folder_path="./", dataset_name="random_covariance", p=100,
     df = pd.DataFrame(np.random.multivariate_normal(mean=mu, cov=noisy_cov, size=N))
     df.to_csv(dataset_path, index=False, header=False)
 
+
 def get_cov_sequence(p=100, N=1000, noise=0.5):
     # Generate the covariance matrix
     mu = np.zeros(p)
@@ -43,11 +44,13 @@ def get_cov_sequence(p=100, N=1000, noise=0.5):
 
     return np.random.multivariate_normal(mean=mu, cov=noisy_cov, size=N)
 
+
 def get_iid_sequence(p=100, N=1000, mean=0.0, variance=1.0):
     # Generate the covariance matrix
     mu = np.ones(p)*mean
     variance_matrix = np.eye(p)*variance
     return np.random.multivariate_normal(mean=mu, cov=variance_matrix, size=N)
+
 
 def save_iid_sequence(folder_path="./", dataset_name="iid", p=100, N=1000, mean=0.0, variance=1.0):
     # Generate the covariance matrix

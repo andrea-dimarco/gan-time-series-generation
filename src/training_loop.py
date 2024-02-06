@@ -1,6 +1,7 @@
 
 from timegan_model import TimeGAN
 from pytorch_lightning.loggers.wandb import WandbLogger
+from pytorch_lightning.callbacks import EarlyStopping
 from torch import cuda
 from pytorch_lightning import Trainer
 import wandb
@@ -23,10 +24,18 @@ def train():
     wandb_logger.experiment.watch(timegan, log='all', log_freq=100)
 
     # Define the trainer
+    early_stop = EarlyStopping(
+        monitor="val_loss",
+        mode="min",
+        patience=hparams.early_stop_patience,
+        strict=False,
+        verbose=False
+    )
     trainer = Trainer(logger=wandb_logger,
                     max_epochs=hparams.n_epochs,
                     accelerator=accelerator,
-                    val_check_interval=0.25
+                    val_check_interval=0.25,
+                    callbacks=[early_stop]
                     )
 
     # Start the training

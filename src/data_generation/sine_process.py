@@ -46,6 +46,7 @@ def sine_data_generation(p, N, seq_len):
                 
     return np.array(data)
 
+
 def plot_process(samples, save_picture=False, show_plot=True):
     '''
     For testing purposes ONLY!!
@@ -68,6 +69,7 @@ def plot_process(samples, save_picture=False, show_plot=True):
         if show_plot:
             plt.show()
 
+
 def save_sine_process(p=100, N=1000, folder_path="./", dataset_name="generated_stream"):
     # Generate stream
     samples = sine_data_generation(p=p, N=N, seq_len=1).squeeze()
@@ -77,10 +79,9 @@ def save_sine_process(p=100, N=1000, folder_path="./", dataset_name="generated_s
     df = pd.DataFrame(samples)
     df.to_csv(dataset_path, index=False, header=False)
 
+
 def get_sine_process(p,N):
     '''
     Generate and return the sine process data without dividing it into sequences.
     '''
     return sine_data_generation(p=p, N=N, seq_len=1).squeeze()
-
-save_sine_process(p=3, N=1000)

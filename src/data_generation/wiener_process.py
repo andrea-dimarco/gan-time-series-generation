@@ -8,6 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt 
 from os import system
 
+
 def weiner_process(N=1000):
     '''
     This function samples a Weiner process
@@ -72,6 +73,7 @@ def get_rnd_corr_matrix(p):
         corr[i][p-1] = last_upper_bound
     return corr
 
+
 def plot_processes(samples, save_picture=False, show_plot=True):
     '''
     Plots all the dimensions of the generated dataset.
@@ -93,6 +95,7 @@ def plot_processes(samples, save_picture=False, show_plot=True):
         if show_plot:
             plt.show()
 
+
 def save_weiner_process(p=100, N=1000, folder_path="./", dataset_name="generated_stream", show_plot=False):
     '''
     Save the generated samples as a csv file.
@@ -108,8 +111,10 @@ def save_weiner_process(p=100, N=1000, folder_path="./", dataset_name="generated
     if show_plot:
         plot_processes(samples)
 
+
 def get_weiner_process(p=100,N=1000):
     '''
     Get the generated samples as a numpy matrix.
     '''
     return multi_dim_wiener_process(p=p, N=N)
+
