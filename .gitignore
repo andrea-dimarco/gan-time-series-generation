@@ -7,6 +7,7 @@ timegan-backup/*
 wandb/offline-run-*
 wandb/*
 *(2024)
+*.pth
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

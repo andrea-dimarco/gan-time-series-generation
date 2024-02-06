@@ -17,7 +17,6 @@ import wandb
 import pytorch_lightning as pl
 
 # My modules
-import losses
 import dataset_handling as dh
 import utilities as ut
 from hyperparamets import Config
@@ -28,19 +27,8 @@ from modules.recovery import Recovery
 from modules.supervisor import Supervisor
 
 '''
-This is the main model. It encapsulates all the logic into a clear and well defined framework, as defined by Lightning.
-
-The main methods of every Lightning model are:
-
-- `train_dataloader` and `val_dataloader`: defines the dataloader for the train and test set
-
-- `configure_optimizers`: configure optimizers and schedulers. For each couple (optimizer, scheduler) there will be one call to `training_step` with the appropriate `optimizer_idx` to identify the optimizer.
-
-- `training_step`: defines what happens in a single training step
-
-- `validation_step`: defines what happens in a single validation step
-
-- `validation_epoch_end`: receive in input an aggregation of all the output of the `validation_step`. It is useful to compute metrics and log examples.
+This is the main model.
+ Following the Lightning Module API
 '''
 class TimeGAN(pl.LightningModule):
     def __init__(self,
@@ -124,8 +112,7 @@ class TimeGAN(pl.LightningModule):
         self.is_sanity = True
 
         # Prevents Lightning from performing the optimization steps
-        self.automatic_optimization = False
-        #self.opt, self.schedulers = self.configure_optimizers()
+        #self.automatic_optimization = False
 
 
     def forward(self, z: torch.Tensor) -> torch.Tensor:
@@ -153,20 +140,6 @@ class TimeGAN(pl.LightningModule):
         X_hat = self.Rec(H_hat) # recovery
 
         return X_hat
-
-
-    def backward(self, loss):
-        '''
-        Performs the backward step from the given losses
-        
-        Arguments:
-            - `loss`: disctionary with the losses
-        '''
-        loss["E_loss"].backward()
-        loss["D_loss"].backward()
-        loss["G_loss"].backward()
-        loss["S_loss"].backward()
-        loss["R_loss"].backward()
 
 
     def train_dataloader(self) -> DataLoader:
@@ -441,8 +414,6 @@ class TimeGAN(pl.LightningModule):
             torch.abs((torch.mean(H_hat, dim=0)) - (torch.mean(H_hat_supervise, dim=0))))
         Dev_loss = Dev_loss_mu + Dev_loss_std
 
-        print(f"\n\n-----Difference Dev - Rec = {w2*Dev_loss.item()-w1*Rec_loss.item()}\n\n")
-
         # Supervised loss
         return w1*Rec_loss + w2*Dev_loss
 
@@ -495,8 +466,9 @@ class TimeGAN(pl.LightningModule):
         return self.reconstruction_loss(X, X_tilde)
 
 
-    def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> Dict[str, torch.Tensor]:
+    def training_step(self,
+                      batch: Tuple[torch.Tensor, torch.Tensor], batch_nb: int, optimizer_idx: int
+    ) -> torch.Tensor:
         '''
         Implements a single training step
 
@@ -512,57 +484,46 @@ class TimeGAN(pl.LightningModule):
             - the total loss for the current training step, together with other information for the
                   logging and possibly the progress bar
         '''
-        # Get optimizers
-        E_optim, D_optim, G_optim, S_optim, R_optim = self.optimizers()
-
         # Process the batch
         X_batch, Z_batch = batch
 
+        if optimizer_idx == 1:
+            # Discriminator Loss
+            loss = self.D_loss(X=X_batch, Z=Z_batch)
+            loss_name = "D_loss"
+            
+        elif optimizer_idx == 2:
+            # Generator Loss
+            loss = self.G_loss(X=X_batch, Z=Z_batch) 
+            loss_name = "G_loss"
+            
+        elif optimizer_idx == 3:
+            # Supervisor Loss
+            loss = self.S_loss(X=X_batch, Z=Z_batch)
+            loss_name = "S_loss"
+            
+        elif optimizer_idx == 0:
+            # Embedder Loss
+            loss = self.E_loss(X=X_batch)
+            loss_name = "E_loss"
 
-        # Discriminator Loss
-        D_loss = self.D_loss(X=X_batch, Z=Z_batch)
-        D_loss.backward()
-        D_optim.step()
-        D_optim.zero_grad()
+        elif optimizer_idx == 4:
+            # Recovery Loss
+            loss = self.R_loss(X=X_batch)
+            loss_name = "R_loss"
         
-
-        # Generator Loss
-        G_loss = self.G_loss(X=X_batch, Z=Z_batch) 
-        G_loss.backward()
-        G_optim.step()
-        G_optim.zero_grad()
-        
-
-        # Supervisor Loss
-        S_loss = self.S_loss(X=X_batch, Z=Z_batch)
-        S_loss.backward()
-        S_optim.step()
-        S_optim.zero_grad()
-        
-
-        # Embedder Loss
-        E_loss = self.E_loss(X=X_batch)
-        E_loss.backward()
-        E_optim.step()
-        E_optim.zero_grad()
-
-
-        # Recovery Loss
-        R_loss = self.R_loss(X=X_batch)
-        R_loss.backward()
-        R_optim.step()
-        R_optim.zero_grad()
+        else:
+            raise RuntimeError("There is an error in the optimizers configuration!")
 
         # Log results
-        loss_dict = { "E_loss": E_loss, "D_loss": D_loss, "G_loss": G_loss, "S_loss": S_loss, "R_loss": R_loss }
+        loss_dict = { loss_name: loss }
         self.log_dict(loss_dict)
-        if self.plot_losses:
-            self.loss_history.append([E_loss.item(), D_loss.item(), G_loss.item(), S_loss.item(), R_loss.item()])            
 
-        return loss_dict
+        return loss
 
 
-    def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int,
+    def validation_step(self,
+                        batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int,
     ) -> Dict[str, Union[torch.Tensor,Sequence[wandb.Image]]]:
         '''
         Implements a single validation step
@@ -601,9 +562,6 @@ class TimeGAN(pl.LightningModule):
         aggregated_loss = w_e*E_loss + w_d*D_loss + w_g*G_loss + w_s*S_loss + w_r*R_loss
         self.log("val_loss", aggregated_loss)
 
-        if self.plot_losses:
-            self.val_loss_history.append([aggregated_loss.item()])
-
         return { "val_loss": aggregated_loss, "image": image }
 
 
@@ -628,7 +586,9 @@ class TimeGAN(pl.LightningModule):
         return example_images
 
 
-    def save_image_examples(self, real: torch.Tensor, fake: torch.Tensor, idx: int=0) -> None:
+    def save_image_examples(self,
+                            real: torch.Tensor, fake: torch.Tensor, idx:int=0
+    ) -> None:
         '''
         Save the image of the plot with the real and fake sequence
         '''
@@ -636,7 +596,7 @@ class TimeGAN(pl.LightningModule):
 
 
     def validation_epoch_end(self, outputs: List[Dict[str, torch.Tensor]]
-    ) -> Dict[str, Union[torch.Tensor, Dict[str, Union[torch.Tensor,Sequence[wandb.Image]]]]]:
+    ) -> Dict[str, torch.Tensor]:
         '''
         Implements the behaviouir at the end of a validation epoch
 

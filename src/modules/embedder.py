@@ -4,7 +4,7 @@ from torch.nn.init import normal_
 
 
 class Embedder(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, var=0.02, num_layers=3, module_type='gru') -> None:
+    def __init__(self, input_size, hidden_size, output_size, var=0.02, num_layers=3, module_type='gru', normalize=True) -> None:
         '''
         The Embedder maps the input sequence to a lower dimensionality representation.
         Args:
@@ -13,7 +13,7 @@ class Embedder(nn.Module):
             - hidden_size: dimensionality of the sample returned by the module
             - num_layers: depth of the module
             - output_size: size of the final output
-            - device: which device should the model run on
+            - normalize: whether to normalize the samples or not
         '''
         assert(module_type in ['rnn', 'gru', 'lstm'])
 
@@ -23,6 +23,7 @@ class Embedder(nn.Module):
         self.num_final_layers = int(num_layers/3+1)
         self.hidden_size = hidden_size
         self.output_size = output_size
+        self.normalize = normalize
         
         # input.shape = ( batch_size, seq_len, feature_size )
         if self.module_type == 'rnn':
@@ -37,15 +38,21 @@ class Embedder(nn.Module):
         else:
             assert(False)
 
+        # Normalization
+        if self.normalize:
+            self.norm = nn.InstanceNorm1d(output_size, affine=True)
+        else:
+            self.norm = None
+
         # initialize weights
-        # for layer_p in self.module._all_weights:
-        #     for p in layer_p:
-        #         if 'weight' in p:
-        #             normal_(self.module.__getattr__(p), 0.0, var)
-        # for layer_p in self.final._all_weights:
-        #     for p in layer_p:
-        #         if 'weight' in p:
-        #             normal_(self.final.__getattr__(p), 0.0, var)
+        for layer_p in self.module._all_weights:
+            for p in layer_p:
+                if 'weight' in p:
+                    normal_(self.module.__getattr__(p), 0.0, var)
+        for layer_p in self.final._all_weights:
+            for p in layer_p:
+                if 'weight' in p:
+                    normal_(self.final.__getattr__(p), 0.0, var)
 
 
     def forward(self, x: Tensor) -> Tensor:
@@ -64,7 +71,9 @@ class Embedder(nn.Module):
             out, _ = self.module(x, h0) # shape = ( batch_size, seq_len, hidden_size )
             out, _ = self.final(out, h0_final) # shape = ( batch_size, seq_len, output_size )
 
-        #out = self.norm(out)
+        if self.normalize:
+            # required shape (batch_size, output_size, seq_len )
+            out = self.norm(out.permute(0, 2, 1)).permute(0, 2, 1)
         return out
 
 

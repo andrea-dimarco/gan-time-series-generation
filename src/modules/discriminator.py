@@ -42,11 +42,11 @@ class Discriminator(nn.Module):
         )
 
         # initialize weights
-        # for layer_p in self.module._all_weights:
-        #     for p in layer_p:
-        #         if 'weight' in p:
-        #             normal_(self.module.__getattr__(p), 0.0, var)
-        # self.block.apply(init_weights)
+        for layer_p in self.module._all_weights:
+            for p in layer_p:
+                if 'weight' in p:
+                    normal_(self.module.__getattr__(p), 0.0, var)
+        self.block.apply(init_weights)
 
 
     def forward(self, x: Tensor) -> Tensor:
