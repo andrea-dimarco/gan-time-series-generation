@@ -4,7 +4,9 @@ from torch.nn.init import normal_
 
 
 class Embedder(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, var=0.02, num_layers=3, module_type='gru', normalize=True) -> None:
+    def __init__(self, input_size, hidden_size,
+                 output_size, var=0.02, num_layers=3,
+                 module_type='gru', normalize=False) -> None:
         '''
         The Embedder maps the input sequence to a lower dimensionality representation.
         Args:
@@ -44,6 +46,10 @@ class Embedder(nn.Module):
         else:
             self.norm = None
 
+
+        # Activation
+        self.activation = nn.Sigmoid()
+
         # initialize weights
         for layer_p in self.module._all_weights:
             for p in layer_p:
@@ -74,6 +80,8 @@ class Embedder(nn.Module):
         if self.normalize:
             # required shape (batch_size, output_size, seq_len )
             out = self.norm(out.permute(0, 2, 1)).permute(0, 2, 1)
+
+        out = self.activation(out)
         return out
 
 

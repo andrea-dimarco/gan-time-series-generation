@@ -38,6 +38,8 @@ class Recovery(nn.Module):
         else:
             assert(False)
 
+        self.activation = nn.Sigmoid()
+
         # initialize weights
         for layer_p in self.module._all_weights:
             for p in layer_p:
@@ -65,5 +67,5 @@ class Recovery(nn.Module):
             out, _ = self.module(x, h0) # shape = ( batch_size, seq_len, hidden_size )
             out, _ = self.final(out, h0_final) # shape = ( batch_size, seq_len, hidden_size )
 
-        #out = self.norm(out)
+        out = self.activation(out)
         return out

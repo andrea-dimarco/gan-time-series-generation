@@ -8,26 +8,29 @@ from dataclasses import dataclass
 class Config:
 
     ## Training parameters
-    n_epochs: int = 10**3 #. . . . . . . Number of epochs of training
+    n_epochs: int = 10**1 #. . . . . . . Number of epochs of training
     early_stop_patience: int = 100 # . . Amount of epochs to wait for improvement
     decay_epoch: int = 0 # . . . . . . . Epoch from which to start lr decay
 
     batch_size: int = 32 # . . . . . . . Amount of samples in each batch
-    lr: float = 0.0002 # . . . . . . . . adam: learning rate
+    lr: float = 0.0100 # . . . . . . . . adam: learning rate
     b1: float = 0.5  # . . . . . . . . . adam: decay of first order momentum of gradient
     b2: float = 0.999 #. . . . . . . . . adam: decay of first order momentum of gradient
 
     lambda_cyc: float = 10.0 # . . . . . Cycle loss weight
     lambda_id: float = 5.0 # . . . . . . Identity loss weight
 
-    n_cpu: int = 12 #. . . . . . . . . . Number of cpu threads to use for the dataloaders
+    n_cpu: int = 8  #. . . . . . . . . . Number of cpu threads to use for the dataloaders
 
-    log_images: int = 25 # . . . . . . . Number of images to logg
+    log_images: int =  5 # . . . . . . . Number of images to logg
 
     alpha: float = 1.0 # . . . . . . . . Regularization coefficient 
 
 
     ## Data loading
+    #. . . . . . . . . . . . . . . . . . Datasets paths
+    train_file_path = "../datasets/training.csv"
+    test_file_path  = "../datasets/testing.csv"
     dataset_name: str = 'wien' # . . . . Which dataset to use
                                # . . . . . . real: gets the samples from csv files
                                # . . . . . . sine: runs independent sine processes wih random phases
@@ -38,11 +41,8 @@ class Config:
                                # . . . . . . . . . with random mutual correlations
     train_test_split: float = 0.7 #. . . Percentage of samples to keep in the training set 
     num_samples: int = 10**4 # . . . . . Number of samples to generate (if any)
-    data_dim: int = 10 # . . . . . . . . Dimension of one generated sample (if any)
-    seq_len: int = 20 #. . . . . . . . . Length of the input sequences
-    #. . . . . . . . . . . . . . . . . . Datasets paths
-    train_file_path = "../datasets/training.csv"
-    test_file_path  = "../datasets/testing.csv"
+    data_dim: int = 5 # . . . . . . . . Dimension of one generated sample (if any)
+    seq_len: int = 10 #. . . . . . . . . Length of the input sequences
 
 
     ## Network parameters

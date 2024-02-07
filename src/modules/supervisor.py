@@ -36,6 +36,9 @@ class Supervisor(nn.Module):
         else:
             assert(False)
 
+        # Activation
+        self.activation = nn.Sigmoid()
+
         # initialize weights
         for layer_p in self.module._all_weights:
             for p in layer_p:
@@ -56,4 +59,5 @@ class Supervisor(nn.Module):
         else:
             out, _ = self.module(x, h0) # shape = ( batch_size, seq_len, output_size )
 
+        out = self.activation(out)
         return out

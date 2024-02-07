@@ -3,7 +3,9 @@ from torch.nn.init import normal_
 
 
 class Generator(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size, var=0.02, num_layers=3, module_type='gru', normalize=True) -> None:
+    def __init__(self, input_size, hidden_size,
+                 output_size, var=0.02, num_layers=3,
+                 module_type='gru', normalize=False) -> None:
         '''
         The Generator takes a sequence of iid samples and generates a sequence in the latent space.
         Args:
@@ -44,6 +46,9 @@ class Generator(nn.Module):
         else:
             self.norm = None
 
+        # Activation
+        self.activation = nn.Sigmoid()
+
         # initialize weights
         for layer_p in self.module._all_weights:
             for p in layer_p:
@@ -74,4 +79,7 @@ class Generator(nn.Module):
         if self.normalize:
             # required shape (batch_size, output_size, seq_len )
             out = self.norm(out.permute(0, 2, 1)).permute(0, 2, 1)
+
+        out = self.activation(out)
+        
         return out
