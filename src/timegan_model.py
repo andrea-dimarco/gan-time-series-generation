@@ -1,13 +1,12 @@
 
 
 # Libraries
-from typing import Sequence, List, Dict, Tuple, Any, Union, Mapping
+from typing import Sequence, List, Dict, Tuple, Union, Mapping
 import itertools
 
 from dataclasses import asdict
 from pathlib import Path
 
-from torchvision.utils import make_grid
 from torch.utils.data import DataLoader
 
 import torch
@@ -34,7 +33,7 @@ class TimeGAN(pl.LightningModule):
     def __init__(self,
         hparams: Union[Dict, Config],
         train_file_path: Path,
-        test_file_path: Path,
+        val_file_path: Path,
         plot_losses: bool=False
     ) -> None:
         '''
@@ -43,7 +42,7 @@ class TimeGAN(pl.LightningModule):
         Arguments:
             - `hparams`: dictionary that contains all the hyperparameters
             - `train_file_path`: Path to the folder that contains the training stream
-            - `test_file_path`: Path to the file that contains the testing stream
+            - `val_file_path`: Path to the file that contains the testing stream
             - `plot_losses`: Saves the losses in the `loss_history` and `val_loss_history`
         '''
         super().__init__()
@@ -51,7 +50,7 @@ class TimeGAN(pl.LightningModule):
 
         # Dataset paths
         self.train_file_path = train_file_path
-        self.test_file_path  = test_file_path
+        self.val_file_path  = val_file_path
 
         # loss criteria
         self.discrimination_loss = torch.nn.CrossEntropyLoss()
@@ -113,23 +112,21 @@ class TimeGAN(pl.LightningModule):
         self.is_sanity = True
 
 
-    def forward(self, z: torch.Tensor) -> torch.Tensor:
+    def forward(self, Z: torch.Tensor) -> torch.Tensor:
         '''
-        Forward pass for this model.
-
-        This is not used while training!
+        Takes the noise and generates a batch of sequences
 
         Arguments:
-            - `z`: input of the forward pass with shape [batch, seq_len, noise_dim]
+            - `Z`: input of the forward pass with shape [batch, seq_len, noise_dim]
 
         Returns:
             - the translated image with shape [batch, seq_len, data_dim]
         '''
 
-        assert(z.size()[2] == self.noise_dim), "Invalid dimention for noise"
+        assert(Z.size()[2] == self.noise_dim), "Invalid dimention for noise sample"
 
         # Generate a synthetic sequence in the latent space
-        E_hat = self.Gen(z) # generator
+        E_hat = self.Gen(Z) # generator
 
         # Tune the sequence (superflous step)
         H_hat = self.Sup(E_hat) # supervisor
@@ -138,6 +135,29 @@ class TimeGAN(pl.LightningModule):
         X_hat = self.Rec(H_hat) # recovery
 
         return X_hat
+
+
+    def cycle(self, X: torch.Tensor) -> torch.Tensor:
+        '''
+        Embeds the sequence and recovers it back.
+
+        Arguments:
+            - `X`: input of the forward pass with shape [batch, seq_len, data_dim]
+
+        Returns:
+            - the translated image with shape [batch, seq_len, data_dim]
+        '''
+
+        assert(X.size()[2] == self.data_dim), "Invalid dimention for data sample"
+
+        # 1. Embedder
+        H = self.Emb(X)
+        # 2. Supervisor
+        H_hat_supervise = self.Sup(H)
+        # 3. Recovery
+        X_tilde = self.Rec(H_hat_supervise)
+
+        return X_tilde
 
 
     def train_dataloader(self) -> DataLoader:
@@ -158,7 +178,7 @@ class TimeGAN(pl.LightningModule):
             pin_memory=True,
         )
         return train_loader
-
+        
 
     def val_dataloader(self) -> DataLoader:
         '''
@@ -168,11 +188,11 @@ class TimeGAN(pl.LightningModule):
         It does not shuffle and does not use random transformation on each image.
         
         Returns:
-            - `test_loader`: the validation set DataLoader
+            - `val_loader`: the validation set DataLoader
         '''
-        test_loader = DataLoader(
+        val_loader = DataLoader(
             dh.RealDataset(
-                file_path=self.test_file_path,
+                file_path=self.val_file_path,
                 seq_len=self.seq_len
             ),
             batch_size=self.hparams["batch_size"],
@@ -180,7 +200,7 @@ class TimeGAN(pl.LightningModule):
             num_workers=self.hparams["n_cpu"],
             pin_memory=True,
         )
-        return test_loader
+        return val_loader
 
 
     def configure_optimizers(self

@@ -130,7 +130,7 @@ class RealDataset(Dataset):
             ).type(torch.float32)
 
         if verbose:
-            print(f"Loaded dataset with {self.n_samples} of dimension {self.p}, resulted in {self.n_seq} sequences.")
+            print(f"Loaded dataset with {self.n_samples} samples of dimension {self.p}, resulted in {self.n_seq} sequences of length {seq_len}.")
 
     def __getitem__(self, index) -> Tuple[torch.Tensor, torch.Tensor]:
         sample = self.x[index]
@@ -165,7 +165,6 @@ def train_test_split(X, split: float=0.7, train_file_name: str="./datasets/train
     - `test_file_name`: name of the .csv file that will contain the testing set
     '''
     assert(split > 0 and split < 1)
-    print(X.shape[0])
     delimiter = int( X.shape[0] * split )
 
     # Train

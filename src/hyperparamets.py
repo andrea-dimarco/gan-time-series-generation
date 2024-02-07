@@ -29,8 +29,9 @@ class Config:
 
     ## Data loading
     #. . . . . . . . . . . . . . . . . . Datasets paths
-    train_file_path = "../datasets/training.csv"
-    test_file_path  = "../datasets/testing.csv"
+    train_file_name = "training.csv"
+    test_file_name  = "testing.csv"
+    val_file_name   = "validating.csv"
     dataset_name: str = 'wien' # . . . . Which dataset to use
                                # . . . . . . real: gets the samples from csv files
                                # . . . . . . sine: runs independent sine processes wih random phases
@@ -39,7 +40,8 @@ class Config:
                                # . . . . . . . . . with random covariance matrix
                                # . . . . . . wien: runs a number or wiener processes 
                                # . . . . . . . . . with random mutual correlations
-    train_test_split: float = 0.7 #. . . Percentage of samples to keep in the training set 
+    train_test_split: float = 0.7 #. . . Split between training and testing samples
+    train_val_split: float = 0.8 # . . . Split between training and validating samples
     num_samples: int = 10**4 # . . . . . Number of samples to generate (if any)
     data_dim: int = 5 # . . . . . . . . Dimension of one generated sample (if any)
     seq_len: int = 10 #. . . . . . . . . Length of the input sequences
@@ -70,4 +72,7 @@ class Config:
     #. . . . . . . . . . . . . . . . . . . . Can be rnn, gru lstm 
 
 
+    ## Testing phase
+    alpha: float = 0.1 # . . . . . . . . Parameter for the Anomaly Detector
+    h: float = 10 #. . . . . . . . . . . Parameter for the Anomaly Detector
     metric_iteration: int = 5 #. . . . . Number of iteration for each metric
