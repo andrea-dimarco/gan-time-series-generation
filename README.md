@@ -1,4 +1,4 @@
-# Time-Series Generation with GANs
+# Time-Series Generation with GANs (2024)
 
 **STILL A WORK IN PROGRESS**
 
