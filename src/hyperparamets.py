@@ -7,6 +7,10 @@ from dataclasses import dataclass
 @dataclass
 class Config:
 
+    ## System parameters
+    operating_system:str = 'gnu' # . . . Will affect the testing results
+    dataset_folder:str = "../datasets/"# Path to the datasets folder 
+
     ## Training parameters
     n_epochs: int = 10**1 #. . . . . . . Number of epochs of training
     early_stop_patience: int = 100 # . . Amount of epochs to wait for improvement
@@ -28,7 +32,7 @@ class Config:
 
 
     ## Data loading
-    #. . . . . . . . . . . . . . . . . . Datasets paths
+    #. . . . . . . . . . . . . . . . . . Datasets file names
     train_file_name = "training.csv"
     test_file_name  = "testing.csv"
     val_file_name   = "validating.csv"

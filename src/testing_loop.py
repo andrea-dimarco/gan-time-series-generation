@@ -76,55 +76,59 @@ timegan = TimeGAN(hparams=hparams,
 
 
 ## REAL TESTING LOOP
-test_dataset = dh.RealDataset(
-                file_path=test_dataset_path,
-                seq_len=hparams.seq_len
-            )
+if hparams.operating_system != 'windows':
+    test_dataset = dh.RealDataset(
+                    file_path=test_dataset_path,
+                    seq_len=hparams.seq_len
+                )
 
-# metrics
-FAR_tot = 0.0 # False Alarm Rate (on nominal data)
-TAR_tot = 0.0 # True Alarm Rate (on synthetic data)
+    # metrics
+    FAR_tot = 0.0 # False Alarm Rate (on nominal data)
+    TAR_tot = 0.0 # True Alarm Rate (on synthetic data)
 
-# train anomaly detectors
-AD_folder = "./src/anomaly_detection/"
-AD_offline_path = f"{datasets_folder}{hparams.dataset_name}_testing_AD_offline.csv"
-AD_online_path  = f"{datasets_folder}{hparams.dataset_name}_testing_AD_online.csv"
+    # train anomaly detectors
+    AD_folder = "./src/anomaly_detection/"
+    AD_offline_path = f"{datasets_folder}{hparams.dataset_name}_testing_AD_offline.csv"
+    AD_online_path  = f"{datasets_folder}{hparams.dataset_name}_testing_AD_online.csv"
 
-# since the model is trained on normalized data
-# we must train the AD on normalized data as well
-df = pd.DataFrame( np.transpose(test_dataset.get_whole_stream().numpy()) )
-df.to_csv(AD_offline_path, index=False, header=False)
+    # since the model is trained on normalized data
+    # we must train the AD on normalized data as well
+    df = pd.DataFrame( np.transpose(test_dataset.get_whole_stream().numpy()) )
+    df.to_csv(AD_offline_path, index=False, header=False)
 
-# train AD
-AD_API.pca_offline(AD_offline_path, folder=AD_folder)
+    # train AD
+    AD_API.pca_offline(AD_offline_path, folder=AD_folder)
 
-# Get AD accuracy on the real data
-anomalies_found = AD_API.pca_online(file_path=AD_offline_path, folder=AD_folder, h=hparams.h, alpha=hparams.alpha)
-FAR_tot += anomalies_found
+    # Get AD accuracy on the real data
+    anomalies_found = AD_API.pca_online(file_path=AD_offline_path, folder=AD_folder, h=hparams.h, alpha=hparams.alpha)
+    FAR_tot += anomalies_found
 
-# free memory
-os.system(f"rm {AD_offline_path}")
+    # free memory
+    os.system(f"rm {AD_offline_path}")
 
-# run tests
-for idx, (X, Z) in enumerate(test_dataset):
-    # Get the synthetic sequence
-    Z_seq = Z.reshape(1, hparams.seq_len, hparams.noise_dim)
-    X_seq = timegan(Z_seq).detach().reshape(hparams.seq_len, hparams.data_dim)
+    # run tests
+    for idx, (X, Z) in enumerate(test_dataset):
+        # Get the synthetic sequence
+        Z_seq = Z.reshape(1, hparams.seq_len, hparams.noise_dim)
+        X_seq = timegan(Z_seq).detach().reshape(hparams.seq_len, hparams.data_dim)
 
-    # save synthetic sequence to a file
-    X_seq = np.transpose(X_seq.numpy())
-    df = pd.DataFrame(X_seq)
-    df.to_csv(AD_online_path, index=False, header=False)
+        # save synthetic sequence to a file
+        X_seq = np.transpose(X_seq.numpy())
+        df = pd.DataFrame(X_seq)
+        df.to_csv(AD_online_path, index=False, header=False)
 
-    # run simulation
-    anomalies_found = AD_API.pca_online(file_path=AD_online_path, folder=AD_folder, h=hparams.h, alpha=hparams.alpha)
-    TAR_tot += anomalies_found
-TAR_tot /= len(test_dataset)
+        # run simulation
+        anomalies_found = AD_API.pca_online(file_path=AD_online_path, folder=AD_folder, h=hparams.h, alpha=hparams.alpha)
+        TAR_tot += anomalies_found
+    TAR_tot /= len(test_dataset)
 
-# free memory
-os.system(f"rm {AD_online_path}")
-AD_API.cleanup_files()
+    # free memory
+    os.system(f"rm {AD_online_path}")
+    AD_API.cleanup_files()
 
-# print results
-print(f"Anomalies found on real data: {round(FAR_tot*100, 2)}%")
-print(f"Anomalies found on fake data: {round(TAR_tot*100, 2)}%")
+    # print results
+    print(f"Anomalies found on real data: {round(FAR_tot*100, 2)}%")
+    print(f"Anomalies found on fake data: {round(TAR_tot*100, 2)}%")
+
+else:
+    print("The PCA-based Anomaly Detector related tests are not currently supported for this operating system.")
