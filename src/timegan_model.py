@@ -152,9 +152,9 @@ class TimeGAN(pl.LightningModule):
         # 1. Embedder
         H = self.Emb(X)
         # 2. Supervisor
-        H_hat_supervise = self.Sup(H)
+        #H_hat_supervise = self.Sup(H)
         # 3. Recovery
-        X_tilde = self.Rec(H_hat_supervise)
+        X_tilde = self.Rec(H)
 
         return X_tilde
 
@@ -569,8 +569,8 @@ class TimeGAN(pl.LightningModule):
 
 
         # visualize result
-        image = self.get_image_examples(X_batch[0], self.Rec(self.Sup(self.Gen(Z_batch)))[0])
-
+        image_S = self.get_image_examples(X_batch[0], self.Rec(self.Sup(self.Gen(Z_batch)))[0], fake_label="Synthetic")
+        image_R = self.get_image_examples(X_batch[0], self.Rec(self.Emb(X_batch))[0], fake_label="Reconstruction")
 
         # Validation loss
         w_e = 0.20
@@ -581,11 +581,12 @@ class TimeGAN(pl.LightningModule):
         aggregated_loss = w_e*E_loss + w_d*D_loss + w_g*G_loss + w_s*S_loss + w_r*R_loss
         self.log("val_loss", aggregated_loss)
 
-        return { "val_loss": aggregated_loss, "image": image }
+        return { "val_loss": aggregated_loss, "image_S": image_S, "image_R": image_R }
 
 
     def get_image_examples(self,
-                           real: torch.Tensor, fake: torch.Tensor):
+                           real: torch.Tensor, fake: torch.Tensor,
+                           fake_label:str="Synthetic"):
         '''
         Given real and "fake" translated images, produce a nice coupled images to log
 
@@ -597,7 +598,7 @@ class TimeGAN(pl.LightningModule):
             - A sequence of wandb.Image to log and visualize the performance
         '''
         example_images = []
-        couple = ut.compare_sequences(real=real, fake=fake, save_img=False, show_graph=False)
+        couple = ut.compare_sequences(real=real, fake=fake, save_img=False, show_graph=False, fake_label=fake_label)
 
         example_images.append(
             wandb.Image(couple, mode="RGB")
@@ -631,18 +632,19 @@ class TimeGAN(pl.LightningModule):
         Returns:
             - The aggregated validation loss and information to update the progress bar
         '''
-        images = []
+        images_S = []
+        images_R = []
 
         for x in outputs:
-            images.extend(x["image"])
+            images_S.extend(x["image_S"])
+            images_R.extend(x["image_R"])
 
-        images = images[: self.hparams["log_images"]]
+        images_S = images_S[: self.hparams["log_images"]]
+        images_R = images_R[: self.hparams["log_images"]]
 
         if not self.is_sanity:  # ignore if it not a real validation epoch. The first one is not.
-            print(f"Logged {len(images)} images.")
-
             self.logger.experiment.log(
-                {f"images": images },
+                {"images_S": images_S, "images_R": images_R },
                 step=self.global_step,
             )
         self.is_sanity = False
@@ -653,7 +655,7 @@ class TimeGAN(pl.LightningModule):
     
 
     def plot(self):
-        if self.plot_losses:
+        if self.plot_losses and len(self.loss_history)>0:
             import numpy as np
             L = np.asarray(self.loss_history)
             ut.plot_processes(samples=L, save_picture=False, show_plot=True)

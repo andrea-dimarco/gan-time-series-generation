@@ -14,8 +14,6 @@ TO DO:
     - test the discriminator accuracy
 
 - modifications
-    - change the discriminator loss
-    - change the discriminator activation function
     - add a second discriminator on the reconstructed samples 
 
 - uninstall

@@ -3,7 +3,7 @@ from random import uniform, randint
 from torch import Tensor, cat
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.figure import Figure
+from typing import List
 
 # Just a function to count the number of parameters
 def count_parameters(model: Module) -> int:
@@ -58,7 +58,7 @@ class ReplayBuffer:
         return cat(to_return)
     
 
-def plot_processes(samples, labels=None, save_picture=False, show_plot=True):
+def plot_process(samples, labels:List[str]|None=None, save_picture=False, show_plot=True, img_idx=0):
     '''
     Plots all the dimensions of the generated dataset.
     '''
@@ -75,9 +75,10 @@ def plot_processes(samples, labels=None, save_picture=False, show_plot=True):
         
         # function to show the plot 
         if save_picture:
-            plt.savefig("plot.png")
+            plt.savefig(f"plot-{img_idx}.png")
         if show_plot:
             plt.show()
+        plt.clf()
 
 
 def compare_sequences(real: Tensor, fake: Tensor,
@@ -100,23 +101,24 @@ def compare_sequences(real: Tensor, fake: Tensor,
     ax0.set_xlabel('Time-Steps')
 
     for i in range(real.shape[1]):
-        ax0.plot(real[:,i])
+        ax0.plot(real.cpu()[:,i])
     ax0.set_ylabel(real_label)
 
     for i in range(fake.shape[1]):
-        ax1.plot(fake[:,i])
+        ax1.plot(fake.cpu()[:,i])
     ax1.set_ylabel(fake_label)
 
     if show_graph:
         plt.show()
     if save_img:
-        plt.savefig(f"double-plot{img_idx}.png")
+        plt.savefig(f"double-plot-{img_idx}.png")
 
 
     # return picture as array
     canvas = fig.canvas
     plt.close()
     canvas.draw()  # Draw the canvas, cache the renderer
+    plt.clf()
 
     image_flat = np.frombuffer(canvas.tostring_rgb(), dtype='uint8')  # (H * W * 3,)
     # NOTE: reversed converts (W, H) from get_width_height to (H, W)
@@ -152,4 +154,3 @@ class LambdaLR():
         return 1.0 - max(0, epoch - self.decay_start_epoch) / (
             self.n_epochs - self.decay_start_epoch
         )
-    
