@@ -54,7 +54,7 @@ class TimeGAN(pl.LightningModule):
         self.val_file_path  = val_file_path
 
         # loss criteria
-        self.discrimination_loss = torch.nn.CrossEntropyLoss()
+        self.discrimination_loss = torch.nn.BCELoss()
         self.reconstruction_loss = torch.nn.MSELoss()
 
         # Expected shapes 
@@ -101,7 +101,6 @@ class TimeGAN(pl.LightningModule):
                               )
         self.Dis = Discriminator(input_size=self.latent_space_dim,
                                  hidden_size=self.hparams["dis_hidden_dim"],
-                                 alpha=self.hparams["dis_alpha"],
                                  num_layers=self.hparams["dis_num_layers"],
                                  module_type=self.hparams["dis_module_type"],
                                  device=self.dev
@@ -344,19 +343,19 @@ class TimeGAN(pl.LightningModule):
         H_hat = self.Sup(E_hat)
             # 4. Discriminator
         Y_fake   = self.Dis(H_hat)
-        Y_real   = self.Dis(H) 
+        Y_real   = self.Dis(H)
         Y_fake_e = self.Dis(E_hat)
 
 
         # Adversarial truths
-        valid = torch.zeros_like(Y_real, device=self.dev) + torch.tensor([1,0], device=self.dev)
-        fake  = torch.zeros_like(Y_real, device=self.dev) + torch.tensor([0,1], device=self.dev)
+        valid = torch.ones_like(Y_real)
+        fake  = torch.zeros_like(Y_fake)
 
 
         # Loss Components
-        loss_real   = self.discrimination_loss(valid, Y_real)
-        loss_fake   = self.discrimination_loss(fake,  Y_fake)
-        loss_fake_e = self.discrimination_loss(fake,  Y_fake_e)
+        loss_real   = self.discrimination_loss(Y_real,   valid)
+        loss_fake   = self.discrimination_loss(Y_fake,   fake)
+        loss_fake_e = self.discrimination_loss(Y_fake_e, fake)
 
         return w1*loss_real + w2*loss_fake + w3*loss_fake_e
 
@@ -391,10 +390,10 @@ class TimeGAN(pl.LightningModule):
 
         # Loss components
             # 1. Adversarial truth
-        valid = torch.zeros_like(Y_fake, device=self.dev) + torch.tensor([1,0], device=self.dev)
+        valid = torch.ones_like(Y_fake)
             # 2. Adversarial
-        GA_loss   = self.discrimination_loss(valid, Y_fake)
-        GA_loss_e = self.discrimination_loss(valid, Y_fake_e)
+        GA_loss   = self.discrimination_loss(Y_fake, valid)
+        GA_loss_e = self.discrimination_loss(Y_fake_e, valid)
             # 3. Supervised loss
         S_loss    = self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
             # 4. Deviation loss

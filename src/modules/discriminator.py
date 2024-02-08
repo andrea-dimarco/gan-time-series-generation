@@ -5,7 +5,7 @@ import torch
 
 class Discriminator(nn.Module):
     def __init__(self, input_size, hidden_size,
-                 device:torch.device, alpha=0.2, var=0.02,
+                 device:torch.device, var=0.02,
                  num_layers=3, module_type='gru'
                  ) -> None:
         '''
@@ -41,8 +41,7 @@ class Discriminator(nn.Module):
         # extra linear layer
         self.block = nn.Sequential(
             nn.BatchNorm1d(hidden_size),
-            nn.Linear(hidden_size, 2),
-            #nn.LeakyReLU(alpha, inplace=True)
+            nn.Linear(hidden_size, 1),
             nn.Softmax(dim=1)
         )
 
@@ -59,17 +58,20 @@ class Discriminator(nn.Module):
         Forward pass
         '''
         batch_size = x.size()[0]
+
+        out = x
+
         h0 = zeros(self.num_layers, batch_size, self.hidden_size, device=self.dev)
-        
         if self.module_type == 'lstm':
             c0 = zeros(self.num_layers, batch_size, self.hidden_size, device=self.dev)
-            out, _ = self.module(x, (c0, h0)) # shape = ( batch_size, seq_len, hidden_size )
+            out, _ = self.module(out, (c0, h0)) # shape = ( batch_size, seq_len, hidden_size )
         else:
-            out, _ = self.module(x, h0) # shape = ( batch_size, seq_len, hidden_size )
+            out, _ = self.module(out, h0) # shape = ( batch_size, seq_len, hidden_size )
 
         out = out[:,-1,:] # only consider the last output of each sequence
 
-        return self.block(out)
+        out = self.block(out)
+        return out
 
 
 def init_weights(m):
