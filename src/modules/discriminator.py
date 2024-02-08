@@ -6,7 +6,8 @@ import torch
 class Discriminator(nn.Module):
     def __init__(self, input_size, hidden_size,
                  device:torch.device, var=0.02,
-                 num_layers=3, module_type='gru'
+                 num_layers=3, normalize=True, 
+                 module_type='gru'
                  ) -> None:
         '''
         The discriminator reasons over the presented sequence and returns whether it is legitimate or not.
@@ -27,6 +28,12 @@ class Discriminator(nn.Module):
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.dev = device
+        self.normalize = normalize
+
+        if normalize:
+            self.norm = nn.BatchNorm1d(input_size, affine=False) # <- ( batch_size, feature_size, seq_len )
+        else:
+            self.norm = None
         
         # input.shape = ( batch_size, seq_len, feature_size )
         if self.module_type == 'rnn':
@@ -42,7 +49,7 @@ class Discriminator(nn.Module):
         self.block = nn.Sequential(
             nn.BatchNorm1d(hidden_size),
             nn.Linear(hidden_size, 1),
-            nn.Softmax(dim=1)
+            nn.Sigmoid()
         )
 
         # initialize weights
@@ -57,9 +64,12 @@ class Discriminator(nn.Module):
         '''
         Forward pass
         '''
+        
         batch_size = x.size()[0]
-
-        out = x
+        out = x # <- ( batch_size, seq_len, input_size)
+        
+        if self.normalize:
+            out = self.norm(out.permute(0,2,1)).permute(0,2,1) # <- needs ( batch_size, input_size, seq_len )
 
         h0 = zeros(self.num_layers, batch_size, self.hidden_size, device=self.dev)
         if self.module_type == 'lstm':
