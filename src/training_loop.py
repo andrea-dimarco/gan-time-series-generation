@@ -99,7 +99,7 @@ def train(datasets_folder="./datasets/"):
     # )
     trainer = Trainer(logger=wandb_logger,
                     max_epochs=hparams.n_epochs,
-                    val_check_interval=0.25
+                    val_check_interval=1.0
                     )
 
     # Start the training
@@ -158,6 +158,6 @@ def validate_model(model:TimeGAN, datasets_folder:str="./datasets/", limit:int=1
 
 ### Testing Area
 datasets_folder = "./datasets/"
-#generate_data(datasets_folder)
+generate_data(datasets_folder)
 train(datasets_folder)
 
