@@ -12,14 +12,16 @@ class Config:
     dataset_folder:str = "../datasets/"# Path to the datasets folder 
 
     ## Training parameters
-    n_epochs: int = 10**1 #. . . . . . . Number of epochs of training
+    n_epochs: int =  5**1 #. . . . . . . Number of epochs of training
     early_stop_patience: int = 100 # . . Amount of epochs to wait for improvement
     decay_epoch: int = 0 # . . . . . . . Epoch from which to start lr decay
 
-    batch_size: int = 32 # . . . . . . . Amount of samples in each batch
-    lr: float = 0.0100 # . . . . . . . . adam: learning rate
+    batch_size: int = 16 # . . . . . . . Amount of samples in each batch
+    lr: float = 0.0002 # . . . . . . . . adam: learning rate
     b1: float = 0.5  # . . . . . . . . . adam: decay of first order momentum of gradient
     b2: float = 0.999 #. . . . . . . . . adam: decay of first order momentum of gradient
+    momentum:float = 0.5 # . . . . . . Momentum for the SDG
+    l2_penalty:float = 0.01 # . . . . . L2 penalty for SGD
 
     lambda_cyc: float = 10.0 # . . . . . Cycle loss weight
     lambda_id: float = 5.0 # . . . . . . Identity loss weight
@@ -27,8 +29,6 @@ class Config:
     n_cpu: int = 8  #. . . . . . . . . . Number of cpu threads to use for the dataloaders
 
     log_images: int =  5 # . . . . . . . Number of images to logg
-
-    alpha: float = 1.0 # . . . . . . . . Regularization coefficient 
 
 
     ## Data loading
@@ -46,7 +46,7 @@ class Config:
                                # . . . . . . . . . with random mutual correlations
     train_test_split: float = 0.7 #. . . Split between training and testing samples
     train_val_split: float = 0.8 # . . . Split between training and validating samples
-    num_samples: int = 10**4 # . . . . . Number of samples to generate (if any)
+    num_samples: int = 10**3 # . . . . . Number of samples to generate (if any)
     data_dim: int = 5 # . . . . . . . . Dimension of one generated sample (if any)
     seq_len: int = 10 #. . . . . . . . . Length of the input sequences
 
@@ -59,8 +59,6 @@ class Config:
     gen_hidden_dim: int = 2 #. . . . . . Dimension of the hidden layers for the generator
     rec_hidden_dim: int = 7 #. . . . . . Dimension of the hidden layers for the recovery
     dis_hidden_dim: int = 5 #. . . . . . Dimension of the hidden layers for the discriminator
-
-    dis_alpha: float  = 0.2 #. . . . . . Parameter for the discriminator's LeakyReLU (currently unused)
 
     gen_num_layers: int = 3 #. . . . . . Number of layers for the generator
     dis_num_layers: int = 3 #. . . . . . Number of layers for the discriminator

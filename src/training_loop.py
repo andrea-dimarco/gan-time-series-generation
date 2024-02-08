@@ -75,7 +75,8 @@ def train(datasets_folder="./datasets/"):
     # Instantiate the model
     timegan = TimeGAN(hparams=hparams,
                     train_file_path=train_dataset_path,
-                    val_file_path=val_dataset_path
+                    val_file_path=val_dataset_path,
+                    plot_losses=True
                     )
 
     # Define the logger -> https://www.wandb.com/articles/pytorch-lightning-with-weights-biases.
@@ -99,6 +100,8 @@ def train(datasets_folder="./datasets/"):
     # Start the training
     trainer.fit(timegan)
 
+    timegan.plot()
+
     # Log the trained model
     trainer.save_checkpoint('timegan.pth')
     wandb.save('timegan.pth')
@@ -108,6 +111,6 @@ def train(datasets_folder="./datasets/"):
 
 ### Testing Area
 datasets_folder = "./datasets/"
-generate_data(datasets_folder)
+#generate_data(datasets_folder)
 train(datasets_folder)
 

@@ -3,7 +3,9 @@ from torch.nn.init import normal_, xavier_uniform_, zeros_
 
 
 class Discriminator(nn.Module):
-    def __init__(self, input_size, hidden_size, alpha=0.2, var=0.02, num_layers=3, module_type='gru') -> None:
+    def __init__(self, input_size, hidden_size, 
+                 var=0.02, num_layers=3, 
+                 normalize=True, module_type='gru') -> None:
         '''
         The discriminator reasons over the presented sequence and returns whether it is legitimate or not.
         Args:
@@ -22,6 +24,12 @@ class Discriminator(nn.Module):
         self.module_type = module_type
         self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.normalize = normalize
+
+        if normalize:
+            self.norm = nn.BatchNorm1d(input_size, affine=False) # <- ( batch_size, feature_size, seq_len )
+        else:
+            self.norm = None
         
         # input.shape = ( batch_size, seq_len, feature_size )
         if self.module_type == 'rnn':
@@ -52,18 +60,23 @@ class Discriminator(nn.Module):
         '''
         Forward pass
         '''
-        batch_size = x.size()[0]
-        h0 = zeros(self.num_layers, batch_size, self.hidden_size)
         
+        batch_size = x.size()[0]
+        out = x # <- ( batch_size, seq_len, input_size)
+        
+        if self.normalize:
+            out = self.norm(out.permute(0,2,1)).permute(0,2,1) # <- needs ( batch_size, input_size, seq_len )
+
+        h0 = zeros(self.num_layers, batch_size, self.hidden_size)
         if self.module_type == 'lstm':
             c0 = zeros(self.num_layers, batch_size, self.hidden_size)
-            out, _ = self.module(x, (c0, h0)) # shape = ( batch_size, seq_len, hidden_size )
+            out, _ = self.module(out, (c0, h0)) # shape = ( batch_size, seq_len, hidden_size )
         else:
-            out, _ = self.module(x, h0) # shape = ( batch_size, seq_len, hidden_size )
+            out, _ = self.module(out, h0) # shape = ( batch_size, seq_len, hidden_size )
 
         out = out[:,-1,:] # only consider the last output of each sequence
-
-        return self.block(out)
+        out = self.block(out)
+        return out
 
 
 def init_weights(m):

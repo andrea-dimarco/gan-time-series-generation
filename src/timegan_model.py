@@ -53,7 +53,7 @@ class TimeGAN(pl.LightningModule):
         self.val_file_path  = val_file_path
 
         # loss criteria
-        self.discrimination_loss = torch.nn.CrossEntropyLoss()
+        self.discrimination_loss = torch.nn.BCELoss()
         self.reconstruction_loss = torch.nn.MSELoss()
 
         # Expected shapes 
@@ -96,7 +96,6 @@ class TimeGAN(pl.LightningModule):
                               )
         self.Dis = Discriminator(input_size=self.latent_space_dim,
                                  hidden_size=self.hparams["dis_hidden_dim"],
-                                 alpha=self.hparams["dis_alpha"],
                                  num_layers=self.hparams["dis_num_layers"],
                                  module_type=self.hparams["dis_module_type"]
                                  )
@@ -231,21 +230,21 @@ class TimeGAN(pl.LightningModule):
         '''
 
         # Optimizers
-        E_optim = torch.optim.Adam(
-            self.Emb.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
-        )
-        D_optim = torch.optim.Adam(
-            self.Dis.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
-        )
-        G_optim = torch.optim.Adam(
-            self.Gen.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
-        )
-        S_optim = torch.optim.Adam(
-            self.Sup.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
-        )
-        R_optim = torch.optim.Adam(
-            self.Rec.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
-        )
+        E_optim = torch.optim.Adam(self.Emb.parameters(recurse=True),
+                                  lr=self.hparams["lr"],
+                                  betas=(self.hparams["b1"], self.hparams["b2"]))
+        D_optim = torch.optim.Adam(self.Dis.parameters(recurse=True),
+                                  lr=self.hparams["lr"],
+                                  betas=(self.hparams["b1"], self.hparams["b2"]))
+        G_optim = torch.optim.Adam(self.Gen.parameters(recurse=True),
+                                  lr=self.hparams["lr"],
+                                  betas=(self.hparams["b1"], self.hparams["b2"]))
+        S_optim = torch.optim.Adam(self.Sup.parameters(recurse=True),
+                                  lr=self.hparams["lr"],
+                                  betas=(self.hparams["b1"], self.hparams["b2"]))
+        R_optim = torch.optim.Adam(self.Rec.parameters(recurse=True),
+                                  lr=self.hparams["lr"],
+                                  betas=(self.hparams["b1"], self.hparams["b2"]))
 
         # linear decay scheduler
         #assert(self.hparams["n_epochs"] > self.hparams["decay_epoch"]), "Decay must start BEFORE the training ends!"
@@ -334,18 +333,19 @@ class TimeGAN(pl.LightningModule):
         H_hat = self.Sup(E_hat)
             # 4. Discriminator
         Y_fake   = self.Dis(H_hat)
-        Y_real   = self.Dis(H) 
+        Y_real   = self.Dis(H)
         Y_fake_e = self.Dis(E_hat)
 
 
         # Adversarial truths
         valid = torch.ones_like(Y_real)
+        fake  = torch.zeros_like(Y_fake)
 
 
         # Loss Components
-        loss_real   = self.discrimination_loss(valid, Y_real)
-        loss_fake   = self.discrimination_loss(valid,  1-Y_fake)
-        loss_fake_e = self.discrimination_loss(valid,  1-Y_fake_e)
+        loss_real   = self.discrimination_loss(Y_real,   valid)
+        loss_fake   = self.discrimination_loss(Y_fake,   fake)
+        loss_fake_e = self.discrimination_loss(Y_fake_e, fake)
 
         return w1*loss_real + w2*loss_fake + w3*loss_fake_e
 
@@ -377,13 +377,15 @@ class TimeGAN(pl.LightningModule):
         Y_fake   = self.Dis(H_hat)
         Y_fake_e = self.Dis(E_hat)
 
+        #print(f"\n\n Y_fake {Y_fake} \n\n")
+
 
         # Loss components
             # 1. Adversarial truth
         valid = torch.ones_like(Y_fake)
             # 2. Adversarial
-        GA_loss   = self.discrimination_loss(valid, Y_fake)
-        GA_loss_e = self.discrimination_loss(valid, Y_fake_e)
+        GA_loss   = self.discrimination_loss(Y_fake, valid)
+        GA_loss_e = self.discrimination_loss(Y_fake_e, valid)
             # 3. Supervised loss
         S_loss    = self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
             # 4. Deviation loss
@@ -649,3 +651,9 @@ class TimeGAN(pl.LightningModule):
         self.log_dict({"val_loss": avg_loss})
         return {"val_loss": avg_loss}
     
+
+    def plot(self):
+        if self.plot_losses:
+            import numpy as np
+            L = np.asarray(self.loss_history)
+            ut.plot_processes(samples=L, save_picture=False, show_plot=True)
