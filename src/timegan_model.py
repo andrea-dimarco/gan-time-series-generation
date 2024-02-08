@@ -1,8 +1,7 @@
 
 
 # Libraries
-from typing import Sequence, List, Dict, Tuple, Union, Mapping
-import itertools
+from typing import Sequence, Dict, Tuple, Union, Mapping
 
 from dataclasses import asdict
 from pathlib import Path

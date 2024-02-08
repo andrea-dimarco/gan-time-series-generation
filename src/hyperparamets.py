@@ -12,12 +12,12 @@ class Config:
     dataset_folder:str = "../datasets/"# Path to the datasets folder 
 
     ## Training parameters
-    n_epochs: int = 10**2 #. . . . . . . Number of epochs of training
+    n_epochs: int = 10**0 #. . . . . . . Number of epochs of training
     early_stop_patience: int = 100 # . . Amount of epochs to wait for improvement
     decay_epoch: int = 0 # . . . . . . . Epoch from which to start lr decay
 
-    batch_size: int = 32 # . . . . . . . Amount of samples in each batch
-    lr: float = 0.0100 # . . . . . . . . adam: learning rate
+    batch_size: int = 64 # . . . . . . . Amount of samples in each batch
+    lr: float = 0.0002 # . . . . . . . . adam: learning rate
     b1: float = 0.5  # . . . . . . . . . adam: decay of first order momentum of gradient
     b2: float = 0.999 #. . . . . . . . . adam: decay of first order momentum of gradient
 

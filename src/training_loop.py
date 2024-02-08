@@ -104,12 +104,13 @@ def train(datasets_folder="./datasets/"):
 
     # Start the training
     trainer.fit(timegan)
+    
+    validate_model(model=timegan, datasets_folder=datasets_folder, limit=2)
 
     # Log the trained model
     trainer.save_checkpoint('timegan.pth')
     wandb.save('timegan.pth')
 
-    validate_model(model=timegan, datasets_folder=datasets_folder, limit=9)
 
     return timegan
 
@@ -134,28 +135,25 @@ def validate_model(model:TimeGAN, datasets_folder:str="./datasets/", limit:int=1
 
     horizon = limit if limit>0 else len(test_dataset)
 
-    # metrics
-    FAR_tot = 0.0 # False Alarm Rate (on nominal data)
-    TAR_tot = 0.0 # True Alarm Rate (on synthetic data)
-
-
     # run tests
     for idx, (X, Z) in enumerate(test_dataset):
         if idx < horizon:
             # Generate the synthetic sequence
-            Z_seq = Z.reshape(1, hparams.seq_len, hparams.noise_dim)
-            X_synth = model(Z_seq).detach().reshape(hparams.seq_len, hparams.data_dim)
+            Z_seq = Z.reshape(1, hparams.seq_len, hparams.noise_dim).to(model.dev)
+            X_synth = model(Z_seq).cpu().detach().reshape(hparams.seq_len, hparams.data_dim)
             # save result
-            ut.plot_processes(samples=X_synth, save_picture=True, img_idx=idx, show_plot=False)
+            ut.plot_process(samples=X_synth, save_picture=True, img_idx=idx, show_plot=False)
 
             # Reconstruct the real sequence
-            X_seq = X.reshape(1, hparams.seq_len, hparams.data_dim)
-            X_tilde = model.cycle(X_seq).detach().reshape(hparams.seq_len, hparams.data_dim)
+            X_seq = X.reshape(1, hparams.seq_len, hparams.data_dim).to(model.dev)
+            X_tilde = model.cycle(X_seq).cpu().detach().reshape(hparams.seq_len, hparams.data_dim)
             # save result
             ut.compare_sequences(real=X, fake=X_tilde, save_img=True, img_idx=idx, show_graph=False)
 
         else:
             break
+
+    
 
 
 ### Testing Area

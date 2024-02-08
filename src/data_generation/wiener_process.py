@@ -83,33 +83,6 @@ def get_rnd_corr_matrix(p):
     return corr
 
 
-def plot_process(samples, save_picture=False, show_plot=True):
-    '''
-    Plots all the dimensions of the generated dataset.
-
-    Arguments:
-        - `samples`: matrix with the data stream of dimension (N, p)
-        - `save_picture`: if to save the picture of the graphs or not
-        - `show_plot`: if to display the plot
-    '''
-    if save_picture or show_plot:
-        for i in range(samples.shape[1]):
-            plt.plot(samples[:,i])
-
-        # naming the x axis 
-        plt.xlabel('time step') 
-        # naming the y axis 
-        plt.ylabel('Zt')
-        # giving a title to my graph 
-        plt.title("Wiener Process plot")
-        
-        # function to show the plot 
-        if save_picture:
-            plt.savefig("{title}-plot.png".format(title="wiener"))
-        if show_plot:
-            plt.show()
-
-
 def save_wiener_process(p=100, N=1000, file_path="./generated_stream.csv", show_plot=False):
     '''
     Save the generated samples as a csv file.
