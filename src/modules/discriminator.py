@@ -36,9 +36,8 @@ class Discriminator(nn.Module):
         # extra linear layer
         self.block = nn.Sequential(
             nn.BatchNorm1d(hidden_size),
-            nn.Linear(hidden_size, 2),
-            #nn.LeakyReLU(alpha, inplace=True)
-            nn.Softmax(dim=1)
+            nn.Linear(hidden_size, 1),
+            nn.Sigmoid()
         )
 
         # initialize weights

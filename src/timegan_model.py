@@ -339,14 +339,13 @@ class TimeGAN(pl.LightningModule):
 
 
         # Adversarial truths
-        valid = torch.zeros_like(Y_real) + torch.tensor([1,0])
-        fake  = torch.zeros_like(Y_real) + torch.tensor([0,1])
+        valid = torch.ones_like(Y_real)
 
 
         # Loss Components
         loss_real   = self.discrimination_loss(valid, Y_real)
-        loss_fake   = self.discrimination_loss(fake,  Y_fake)
-        loss_fake_e = self.discrimination_loss(fake,  Y_fake_e)
+        loss_fake   = self.discrimination_loss(valid,  1-Y_fake)
+        loss_fake_e = self.discrimination_loss(valid,  1-Y_fake_e)
 
         return w1*loss_real + w2*loss_fake + w3*loss_fake_e
 
@@ -381,7 +380,7 @@ class TimeGAN(pl.LightningModule):
 
         # Loss components
             # 1. Adversarial truth
-        valid = torch.zeros_like(Y_fake) + torch.tensor([1,0])
+        valid = torch.ones_like(Y_fake)
             # 2. Adversarial
         GA_loss   = self.discrimination_loss(valid, Y_fake)
         GA_loss_e = self.discrimination_loss(valid, Y_fake_e)

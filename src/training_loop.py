@@ -64,7 +64,7 @@ def train(datasets_folder="./datasets/"):
 
     if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
         train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
-        val_dataset_path  = f"{datasets_folder}{hparams.dataset_name}_validating.csv"
+        val_dataset_path  = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
 
     elif hparams.dataset_name == 'real':
         train_dataset_path = hparams.train_file_path
