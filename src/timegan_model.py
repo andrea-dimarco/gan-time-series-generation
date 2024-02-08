@@ -34,6 +34,7 @@ class TimeGAN(pl.LightningModule):
         hparams: Union[Dict, Config],
         train_file_path: Path,
         val_file_path: Path,
+        device: torch.device,
         plot_losses: bool=False
     ) -> None:
         '''
@@ -47,6 +48,7 @@ class TimeGAN(pl.LightningModule):
         '''
         super().__init__()
         self.save_hyperparameters(asdict(hparams) if not isinstance(hparams, Mapping) else hparams)
+        self.dev = device
 
         # Dataset paths
         self.train_file_path = train_file_path
@@ -76,29 +78,34 @@ class TimeGAN(pl.LightningModule):
                             hidden_size=self.hparams["gen_hidden_dim"],
                             output_size=self.latent_space_dim,
                             num_layers=self.hparams["gen_num_layers"],
-                            module_type=self.hparams["gen_module_type"]
+                            module_type=self.hparams["gen_module_type"],
+                            device=self.dev
                             )
         self.Emb = Embedder(input_size=self.data_dim,
                             hidden_size=self.hparams["emb_hidden_dim"],
                             output_size=self.latent_space_dim,
                             num_layers=self.hparams["emb_num_layers"],
-                            module_type=self.hparams["emb_module_type"]
+                            module_type=self.hparams["emb_module_type"],
+                            device=self.dev
                             )
         self.Rec = Recovery(input_size=self.latent_space_dim,
                             hidden_size=self.hparams["rec_hidden_dim"],
                             output_size=self.data_dim,
                             num_layers=self.hparams["rec_num_layers"],
-                            module_type=self.hparams["rec_module_type"]
+                            module_type=self.hparams["rec_module_type"],
+                            device=self.dev
                             )
         self.Sup = Supervisor(input_size=self.latent_space_dim,
                               num_layers=self.hparams["sup_num_layers"],
-                              module_type=self.hparams["sup_module_type"]
+                              module_type=self.hparams["sup_module_type"],
+                              device=self.dev
                               )
         self.Dis = Discriminator(input_size=self.latent_space_dim,
                                  hidden_size=self.hparams["dis_hidden_dim"],
                                  alpha=self.hparams["dis_alpha"],
                                  num_layers=self.hparams["dis_num_layers"],
-                                 module_type=self.hparams["dis_module_type"]
+                                 module_type=self.hparams["dis_module_type"],
+                                 device=self.dev
                                  )
 
         # Image buffers
@@ -110,6 +117,12 @@ class TimeGAN(pl.LightningModule):
 
         # It avoids wandb logging when lighting does a sanity check on the validation
         self.is_sanity = True
+
+        # multiple optimizers are no longer supported by LightningModule
+        self.automatic_optimization = False
+
+        # For the end of the validation step
+        self.validation_step_output = []
 
 
     def forward(self, Z: torch.Tensor) -> torch.Tensor:
@@ -174,8 +187,7 @@ class TimeGAN(pl.LightningModule):
             ),
             batch_size=self.hparams["batch_size"],
             shuffle=True,
-            num_workers=self.hparams["n_cpu"],
-            pin_memory=True,
+            pin_memory=True
         )
         return train_loader
         
@@ -197,8 +209,7 @@ class TimeGAN(pl.LightningModule):
             ),
             batch_size=self.hparams["batch_size"],
             shuffle=False,
-            num_workers=self.hparams["n_cpu"],
-            pin_memory=True,
+            pin_memory=True
         )
         return val_loader
 
@@ -339,8 +350,8 @@ class TimeGAN(pl.LightningModule):
 
 
         # Adversarial truths
-        valid = torch.zeros_like(Y_real) + torch.tensor([1,0])
-        fake  = torch.zeros_like(Y_real) + torch.tensor([0,1])
+        valid = torch.zeros_like(Y_real, device=self.dev) + torch.tensor([1,0], device=self.dev)
+        fake  = torch.zeros_like(Y_real, device=self.dev) + torch.tensor([0,1], device=self.dev)
 
 
         # Loss Components
@@ -381,7 +392,7 @@ class TimeGAN(pl.LightningModule):
 
         # Loss components
             # 1. Adversarial truth
-        valid = torch.zeros_like(Y_fake) + torch.tensor([1,0])
+        valid = torch.zeros_like(Y_fake, device=self.dev) + torch.tensor([1,0], device=self.dev)
             # 2. Adversarial
         GA_loss   = self.discrimination_loss(valid, Y_fake)
         GA_loss_e = self.discrimination_loss(valid, Y_fake_e)
@@ -485,8 +496,8 @@ class TimeGAN(pl.LightningModule):
 
 
     def training_step(self,
-                      batch: Tuple[torch.Tensor, torch.Tensor], batch_nb: int, optimizer_idx: int
-    ) -> torch.Tensor:
+                      batch: Tuple[torch.Tensor, torch.Tensor], batch_nb: int
+    ) -> Dict[str, torch.Tensor]:
         '''
         Implements a single training step
 
@@ -505,39 +516,45 @@ class TimeGAN(pl.LightningModule):
         # Process the batch
         X_batch, Z_batch = batch
 
-        if optimizer_idx == 1:
-            # Discriminator Loss
-            loss = self.D_loss(X=X_batch, Z=Z_batch)
-            loss_name = "D_loss"
-            
-        elif optimizer_idx == 2:
-            # Generator Loss
-            loss = self.G_loss(X=X_batch, Z=Z_batch) 
-            loss_name = "G_loss"
-            
-        elif optimizer_idx == 3:
-            # Supervisor Loss
-            loss = self.S_loss(X=X_batch, Z=Z_batch)
-            loss_name = "S_loss"
-            
-        elif optimizer_idx == 0:
-            # Embedder Loss
-            loss = self.E_loss(X=X_batch)
-            loss_name = "E_loss"
-
-        elif optimizer_idx == 4:
-            # Recovery Loss
-            loss = self.R_loss(X=X_batch)
-            loss_name = "R_loss"
+        E_optim, D_optim, G_optim, S_optim, R_optim = self.optimizers()
         
-        else:
-            raise RuntimeError("There is an error in the optimizers configuration!")
+        # Zero grad
+        E_optim.zero_grad()
+        D_optim.zero_grad()
+        G_optim.zero_grad()
+        S_optim.zero_grad()
+        R_optim.zero_grad()
+
+        # Discriminator Loss
+        D_loss = self.D_loss(X=X_batch, Z=Z_batch)
+        D_loss.backward()
+        D_optim.step()
+        
+        # Generator Loss
+        G_loss = self.G_loss(X=X_batch, Z=Z_batch) 
+        G_loss.backward()
+        G_optim.step()
+        
+        # Supervisor Loss
+        S_loss = self.S_loss(X=X_batch, Z=Z_batch)
+        S_loss.backward()
+        S_optim.step()
+        
+        # Embedder Loss
+        E_loss = self.E_loss(X=X_batch)
+        E_loss.backward()
+        E_optim.step()
+
+        # Recovery Loss
+        R_loss = self.R_loss(X=X_batch)
+        R_loss.backward()
+        R_optim.step()
 
         # Log results
-        loss_dict = { loss_name: loss }
+        loss_dict = { "E_loss": E_loss, "D_loss": D_loss, "G_loss": G_loss, "S_loss": S_loss, "R_loss": R_loss }
         self.log_dict(loss_dict)
 
-        return loss
+        return loss_dict
 
 
     def validation_step(self,
@@ -580,7 +597,10 @@ class TimeGAN(pl.LightningModule):
         aggregated_loss = w_e*E_loss + w_d*D_loss + w_g*G_loss + w_s*S_loss + w_r*R_loss
         self.log("val_loss", aggregated_loss)
 
-        return { "val_loss": aggregated_loss, "image": image }
+        val_out = { "val_loss": aggregated_loss, "image": image }
+        self.validation_step_output.append(val_out)
+
+        return val_out
 
 
     def get_image_examples(self,
@@ -613,8 +633,7 @@ class TimeGAN(pl.LightningModule):
         ut.compare_sequences(real=real, fake=fake, save_img=True, show_graph=False, img_idx=idx)
 
 
-    def validation_epoch_end(self, outputs: List[Dict[str, torch.Tensor]]
-    ) -> Dict[str, torch.Tensor]:
+    def on_validation_epoch_end(self) -> Dict[str, torch.Tensor]:
         '''
         Implements the behaviouir at the end of a validation epoch
 
@@ -632,7 +651,7 @@ class TimeGAN(pl.LightningModule):
         '''
         images = []
 
-        for x in outputs:
+        for x in self.validation_step_output:
             images.extend(x["image"])
 
         images = images[: self.hparams["log_images"]]
@@ -646,7 +665,8 @@ class TimeGAN(pl.LightningModule):
             )
         self.is_sanity = False
 
-        avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
+        avg_loss = torch.stack([x["val_loss"] for x in self.validation_step_output]).mean()
         self.log_dict({"val_loss": avg_loss})
+        self.validation_step_output = []
         return {"val_loss": avg_loss}
     

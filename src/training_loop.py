@@ -2,7 +2,6 @@
 from timegan_model import TimeGAN
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping
-from torch import cuda
 from pytorch_lightning import Trainer
 import wandb
 from hyperparamets import Config
@@ -12,6 +11,9 @@ import torch
 from data_generation import iid_sequence_generator, sine_process, wiener_process
 from dataset_handling import train_test_split
 from numpy import loadtxt, float32
+
+import dataset_handling as dh
+import utilities as ut
 
 
 def generate_data(datasets_folder="./datasets/"):
@@ -58,13 +60,16 @@ def generate_data(datasets_folder="./datasets/"):
 def train(datasets_folder="./datasets/"):
 
     torch.multiprocessing.set_sharing_strategy('file_system')
+    torch.set_float32_matmul_precision('medium')
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print(f"Using device {device}.")
 
     # Parameters
     hparams = Config()
 
     if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
         train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
-        val_dataset_path  = f"{datasets_folder}{hparams.dataset_name}_validating.csv"
+        val_dataset_path  = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
 
     elif hparams.dataset_name == 'real':
         train_dataset_path = hparams.train_file_path
@@ -75,7 +80,8 @@ def train(datasets_folder="./datasets/"):
     # Instantiate the model
     timegan = TimeGAN(hparams=hparams,
                     train_file_path=train_dataset_path,
-                    val_file_path=val_dataset_path
+                    val_file_path=val_dataset_path,
+                    device=device
                     )
 
     # Define the logger -> https://www.wandb.com/articles/pytorch-lightning-with-weights-biases.
@@ -103,11 +109,57 @@ def train(datasets_folder="./datasets/"):
     trainer.save_checkpoint('timegan.pth')
     wandb.save('timegan.pth')
 
+    validate_model(model=timegan, datasets_folder=datasets_folder, limit=9)
+
     return timegan
+
+
+def validate_model(model:TimeGAN, datasets_folder:str="./datasets/", limit:int=1) -> None:
+    '''
+    Run some tests after the traning has ended.
+
+    Arguments:
+        - model: the TimeGAN model, preferrably already trained.
+        - datasets_folder: folder containing the datasets
+        - limit: amout of samples to run validation on, if 0 then it will be the whole dataset
+    '''
+    hparams = Config()
+    test_dataset_path = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
+
+    # Test Dataset
+    test_dataset = dh.RealDataset(
+                    file_path=test_dataset_path,
+                    seq_len=hparams.seq_len
+                )
+
+    horizon = limit if limit>0 else len(test_dataset)
+
+    # metrics
+    FAR_tot = 0.0 # False Alarm Rate (on nominal data)
+    TAR_tot = 0.0 # True Alarm Rate (on synthetic data)
+
+
+    # run tests
+    for idx, (X, Z) in enumerate(test_dataset):
+        if idx < horizon:
+            # Generate the synthetic sequence
+            Z_seq = Z.reshape(1, hparams.seq_len, hparams.noise_dim)
+            X_synth = model(Z_seq).detach().reshape(hparams.seq_len, hparams.data_dim)
+            # save result
+            ut.plot_processes(samples=X_synth, save_picture=True, img_idx=idx, show_plot=False)
+
+            # Reconstruct the real sequence
+            X_seq = X.reshape(1, hparams.seq_len, hparams.data_dim)
+            X_tilde = model.cycle(X_seq).detach().reshape(hparams.seq_len, hparams.data_dim)
+            # save result
+            ut.compare_sequences(real=X, fake=X_tilde, save_img=True, img_idx=idx, show_graph=False)
+
+        else:
+            break
 
 
 ### Testing Area
 datasets_folder = "./datasets/"
-generate_data(datasets_folder)
+#generate_data(datasets_folder)
 train(datasets_folder)
 

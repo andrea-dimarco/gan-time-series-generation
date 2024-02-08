@@ -1,9 +1,12 @@
 from torch import nn, Tensor, zeros
 from torch.nn.init import normal_
-
+import torch
 
 class Supervisor(nn.Module):
-    def __init__(self, input_size, var=0.02, num_layers=3, module_type='gru') -> None:
+    def __init__(self, input_size, device: torch.device,
+                 var=0.02, num_layers=3,
+                 module_type='gru'
+                ) -> None:
         '''
         The Supervisors takes a sequence in the latent space and returns a new sequence in the latent space.
          This agent aims to close the DIFFERENCES between the latent space mapped by te EMBEDDER 
@@ -25,6 +28,7 @@ class Supervisor(nn.Module):
         self.module_type = module_type
         self.num_layers = num_layers
         self.output_size = input_size
+        self.dev = device
         
         # input.shape = ( batch_size, seq_len, feature_size )
         if self.module_type == 'rnn':
@@ -51,10 +55,10 @@ class Supervisor(nn.Module):
         Forward pass
         '''
         batch_size = x.size()[0]
-        h0 = zeros(self.num_layers, batch_size, self.output_size) # initial state
+        h0 = zeros(self.num_layers, batch_size, self.output_size, device=self.dev) # initial state
 
         if self.module_type == 'lstm':
-            c0 = zeros(self.num_layers, batch_size, self.output_size)
+            c0 = zeros(self.num_layers, batch_size, self.output_size, device=self.dev)
             out, _ = self.module(x, (c0, h0)) # shape = ( batch_size, seq_len, output_size )
         else:
             out, _ = self.module(x, h0) # shape = ( batch_size, seq_len, output_size )

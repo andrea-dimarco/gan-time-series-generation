@@ -1,9 +1,13 @@
 from torch import nn, Tensor, zeros
 from torch.nn.init import normal_, xavier_uniform_, zeros_
+import torch
 
 
 class Discriminator(nn.Module):
-    def __init__(self, input_size, hidden_size, alpha=0.2, var=0.02, num_layers=3, module_type='gru') -> None:
+    def __init__(self, input_size, hidden_size,
+                 device:torch.device, alpha=0.2, var=0.02,
+                 num_layers=3, module_type='gru'
+                 ) -> None:
         '''
         The discriminator reasons over the presented sequence and returns whether it is legitimate or not.
         Args:
@@ -22,6 +26,7 @@ class Discriminator(nn.Module):
         self.module_type = module_type
         self.num_layers = num_layers
         self.hidden_size = hidden_size
+        self.dev = device
         
         # input.shape = ( batch_size, seq_len, feature_size )
         if self.module_type == 'rnn':
@@ -54,10 +59,10 @@ class Discriminator(nn.Module):
         Forward pass
         '''
         batch_size = x.size()[0]
-        h0 = zeros(self.num_layers, batch_size, self.hidden_size)
+        h0 = zeros(self.num_layers, batch_size, self.hidden_size, device=self.dev)
         
         if self.module_type == 'lstm':
-            c0 = zeros(self.num_layers, batch_size, self.hidden_size)
+            c0 = zeros(self.num_layers, batch_size, self.hidden_size, device=self.dev)
             out, _ = self.module(x, (c0, h0)) # shape = ( batch_size, seq_len, hidden_size )
         else:
             out, _ = self.module(x, h0) # shape = ( batch_size, seq_len, hidden_size )

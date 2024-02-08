@@ -8,11 +8,11 @@ from dataclasses import dataclass
 class Config:
 
     ## System parameters
-    operating_system:str = 'gnu' # . . . Will affect the testing results
+    operating_system:str = 'windows' # . . . Will affect the testing results
     dataset_folder:str = "../datasets/"# Path to the datasets folder 
 
     ## Training parameters
-    n_epochs: int = 10**1 #. . . . . . . Number of epochs of training
+    n_epochs: int = 10**2 #. . . . . . . Number of epochs of training
     early_stop_patience: int = 100 # . . Amount of epochs to wait for improvement
     decay_epoch: int = 0 # . . . . . . . Epoch from which to start lr decay
 
@@ -25,10 +25,7 @@ class Config:
     lambda_id: float = 5.0 # . . . . . . Identity loss weight
 
     n_cpu: int = 8  #. . . . . . . . . . Number of cpu threads to use for the dataloaders
-
-    log_images: int =  5 # . . . . . . . Number of images to logg
-
-    alpha: float = 1.0 # . . . . . . . . Regularization coefficient 
+    log_images: int =  1 # . . . . . . . Number of images to log at every validation epoch
 
 
     ## Data loading
