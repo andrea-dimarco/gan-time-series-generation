@@ -2,6 +2,7 @@ from torch.nn import Module
 from random import uniform, randint
 from torch import Tensor, cat
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 from typing import List
 
@@ -79,7 +80,7 @@ def plot_process(samples, labels:List[str]|None=None, save_picture=False, show_p
         if show_plot:
             plt.show()
         plt.clf()
-    print("\n\nAAAAAA\n\n")
+
 
 def compare_sequences(real: Tensor, fake: Tensor,
                       real_label="Real sequence", fake_label="Fake Sequence",
@@ -97,6 +98,7 @@ def compare_sequences(real: Tensor, fake: Tensor,
     Returns:
         - numpy matrix with the pixel values for the image
     '''
+    mpl.use('Agg')
     fig, (ax0, ax1) = plt.subplots(2, 1, layout='constrained')
     ax0.set_xlabel('Time-Steps')
 
@@ -116,9 +118,9 @@ def compare_sequences(real: Tensor, fake: Tensor,
 
     # return picture as array
     canvas = fig.canvas
-    plt.close()
     canvas.draw()  # Draw the canvas, cache the renderer
     plt.clf()
+    plt.close('all')
 
     image_flat = np.frombuffer(canvas.tostring_rgb(), dtype='uint8')  # (H * W * 3,)
     # NOTE: reversed converts (W, H) from get_width_height to (H, W)

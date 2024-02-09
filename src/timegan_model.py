@@ -43,7 +43,7 @@ class TimeGAN(pl.LightningModule):
             - `hparams`: dictionary that contains all the hyperparameters
             - `train_file_path`: Path to the folder that contains the training stream
             - `val_file_path`: Path to the file that contains the testing stream
-            - `plot_losses`: Saves the losses in the `loss_history` and `val_loss_history`
+            - `plot_losses`: Saves the losses in the `loss_history`
         '''
         super().__init__()
         self.save_hyperparameters(asdict(hparams) if not isinstance(hparams, Mapping) else hparams)
@@ -66,11 +66,9 @@ class TimeGAN(pl.LightningModule):
         if plot_losses:
             self.plot_losses = True
             self.loss_history = []
-            self.val_loss_history = []
         else:
             self.plot_losses = False
             self.loss_history = None
-            self.val_loss_history = None
 
         # Initialize Modules
         self.Gen = Generator(input_size=self.noise_dim,
@@ -361,7 +359,7 @@ class TimeGAN(pl.LightningModule):
 
 
     def G_loss(self, X: torch.Tensor, Z: torch.Tensor,
-                w1:float=0.25, w2:float=0.25, w3:float=0.25, w4:float=0.25
+                w1:float=0.10, w2:float=0.10, w3:float=0.35, w4:float=0.45
     ) -> torch.Tensor:
         '''
         This function computes the loss for the GENERATOR module.
@@ -380,7 +378,6 @@ class TimeGAN(pl.LightningModule):
         E_hat = self.Gen(Z) 
             # 3. Supervisor
         H_hat = self.Sup(E_hat)
-        H_hat_supervise = self.Sup(H)
             # 4. Recovery
         X_hat = self.Rec(H_hat)
             # 5. Discriminator
@@ -391,11 +388,11 @@ class TimeGAN(pl.LightningModule):
         # Loss components
             # 1. Adversarial truth
         valid = torch.ones_like(Y_fake)
-            # 2. Adversarial
-        GA_loss   = self.discrimination_loss(Y_fake, valid)
+            # 2. Adversarial loss
+        GA_loss   = self.discrimination_loss(Y_fake,   valid)
         GA_loss_e = self.discrimination_loss(Y_fake_e, valid)
             # 3. Supervised loss
-        S_loss    = self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
+        S_loss    = self.reconstruction_loss(H_hat[:,1:,:], E_hat[:,:-1,:])
             # 4. Deviation loss
         G_loss_mu = torch.mean(
             torch.abs(
@@ -404,7 +401,7 @@ class TimeGAN(pl.LightningModule):
             torch.abs((torch.mean(X_hat, dim=0)) - (torch.mean(X, dim=0))))
         G_loss_V  = G_loss_mu + G_loss_std
 
-        return w1*GA_loss + w2*GA_loss_e + w3*torch.sqrt(S_loss) + w4*G_loss_V 
+        return w1*GA_loss + w2*GA_loss_e + w3*S_loss*0.0 + w4*G_loss_V 
     
 
     def S_loss(self, X: torch.Tensor, Z: torch.Tensor,
@@ -493,7 +490,7 @@ class TimeGAN(pl.LightningModule):
         return self.reconstruction_loss(X, X_tilde)
 
 
-    def training_step(self,
+    def training_step(self, 
                       batch: Tuple[torch.Tensor, torch.Tensor], batch_nb: int
     ) -> Dict[str, torch.Tensor]:
         '''
@@ -549,6 +546,8 @@ class TimeGAN(pl.LightningModule):
         R_optim.step()
 
         # Log results
+        if self.plot_losses:
+            self.loss_history.append( [G_loss.item()])#, D_loss.item(), G_loss.item(), S_loss.item(), R_loss.item()] )
         loss_dict = { "E_loss": E_loss, "D_loss": D_loss, "G_loss": G_loss, "S_loss": S_loss, "R_loss": R_loss }
         self.log_dict(loss_dict)
 
@@ -581,10 +580,8 @@ class TimeGAN(pl.LightningModule):
         E_loss = self.E_loss(X=X_batch)
         R_loss = self.R_loss(X=X_batch)
 
-
         # visualize result
         image = self.get_image_examples(X_batch[0], self.Rec(self.Sup(self.Gen(Z_batch)))[0])
-
 
         # Validation loss
         w_e = 0.20
@@ -631,7 +628,8 @@ class TimeGAN(pl.LightningModule):
         ut.compare_sequences(real=real, fake=fake, save_img=True, show_graph=False, img_idx=idx)
 
 
-    def on_validation_epoch_end(self) -> Dict[str, torch.Tensor]:
+    def on_validation_epoch_end(self
+    ) -> Dict[str, torch.Tensor]:
         '''
         Implements the behaviouir at the end of a validation epoch
 
@@ -655,7 +653,7 @@ class TimeGAN(pl.LightningModule):
         images = images[: self.hparams["log_images"]]
 
         if not self.is_sanity:  # ignore if it not a real validation epoch. The first one is not.
-            print(f"Logged {len(images)} images.")
+            #print(f"Logged {len(images)} images.")
 
             self.logger.experiment.log(
                 {f"images": images },
@@ -667,4 +665,16 @@ class TimeGAN(pl.LightningModule):
         self.log_dict({"val_loss": avg_loss})
         self.validation_step_output = []
         return {"val_loss": avg_loss}
+    
+
+    def plot(self) -> None:
+        '''
+        Plot funky graaph
+        '''
+        import numpy as np
+        if self.plot_losses and len(self.loss_history)>0:
+            # labels=["E_loss", "D_loss", "G_loss", "S_loss", "R_loss"],
+            ut.plot_process(samples=np.asarray(self.loss_history),
+                            show_plot=True,
+                            save_picture=True)
     

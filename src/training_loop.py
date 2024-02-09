@@ -15,6 +15,9 @@ from numpy import loadtxt, float32
 import dataset_handling as dh
 import utilities as ut
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 def generate_data(datasets_folder="./datasets/"):
     hparams = Config()
@@ -81,7 +84,8 @@ def train(datasets_folder="./datasets/"):
     timegan = TimeGAN(hparams=hparams,
                     train_file_path=train_dataset_path,
                     val_file_path=val_dataset_path,
-                    device=device
+                    device=device,
+                    plot_losses=False
                     )
 
     # Define the logger -> https://www.wandb.com/articles/pytorch-lightning-with-weights-biases.
@@ -90,13 +94,14 @@ def train(datasets_folder="./datasets/"):
     wandb_logger.experiment.watch(timegan, log='all', log_freq=100)
 
     # Define the trainer
-    # early_stop = EarlyStopping(
-    #     monitor="val_loss",
-    #     mode="min",
-    #     patience=hparams.early_stop_patience,
-    #     strict=False,
-    #     verbose=False
-    # )
+    early_stop = EarlyStopping(
+         monitor="val_loss",
+         mode="min",
+         patience=hparams.early_stop_patience,
+         strict=False,
+         verbose=False
+         )
+
     trainer = Trainer(logger=wandb_logger,
                     max_epochs=hparams.n_epochs,
                     val_check_interval=1.0
@@ -104,13 +109,12 @@ def train(datasets_folder="./datasets/"):
 
     # Start the training
     trainer.fit(timegan)
-    
-    validate_model(model=timegan, datasets_folder=datasets_folder, limit=2)
+
+    #timegan.plot()
 
     # Log the trained model
     trainer.save_checkpoint('timegan.pth')
     wandb.save('timegan.pth')
-
 
     return timegan
 
