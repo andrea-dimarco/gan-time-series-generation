@@ -1,22 +1,12 @@
 TO DO:
-- study TimeGAN code
-    - visualization_metrics
-    - predictive_metrics
+- Make test case
+    - predictive_test(...)
 
 - review Weights & Biases -> [here](https://www.youtube.com/playlist?list=PLD80i8An1OEGajeVo15ohAQYF1Ttle0lk)
-- make cool plots for the model
 
 - train the model
     - fix S_loss
     - fix G_loss
-
-- uninstall
-    - wandb
-    - pytorch-lightning
-    - pyyaml
-    - torchvision
-    - plotly
-    - tensorflow
 
 - write Report
     - 1) Introduction: section where the problem is presented, and the overall proposed approach is briefly described

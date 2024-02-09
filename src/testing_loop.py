@@ -48,7 +48,6 @@ def generate_data(datasets_folder="./datasets/"
         pass
     else:
         raise ValueError("Dataset not supported.")
-    
 
     if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
         train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
@@ -252,6 +251,30 @@ def discriminative_test(model:TimeGAN, test_dataset:dh.RealDataset,
     return loss
 
 
+def predictive_test(model:TimeGAN, test_dataset:dh.RealDataset,
+                    limit:int=0, frequency:int=10,
+                    save_pictures:bool=True, folder_path:str="./test_results/generation_tests/"
+                    ) -> float:
+    '''
+    Train a simple LSTM to predict the next steps of the generated data
+     then evaluate it on the real data
+
+    Arguments:
+        - `model`: TimeGAN model to test
+        - `test_dataset`: test dataset
+        - `limit`: test sample number horizon
+        - `frequency`: how often to save the picture
+        - `save_pictures`: if to save the pictures or not
+        - `folder_path`: where to save the pictures
+
+    Returns:
+        - average loss found
+    '''
+    pass
+
+
+
+## RUN TESTS
 # Instantiate the model
 timegan = TimeGAN(hparams=hparams,
                     train_file_path=train_dataset_path,
@@ -270,18 +293,27 @@ test_dataset = dh.RealDataset(
 
 
 ## TESTING LOOP
-if True:
+limit = 100
+frequency = 20
+if False:
     avg_rec_loss = recovery_test(model=timegan,
-                                test_dataset=test_dataset,
-                                limit=100,
-                                frequency=20)
+                                 test_dataset=test_dataset,
+                                 limit=limit,
+                                 frequency=frequency)
 
     avg_gen_loss = generation_test(model=timegan,
-                                test_dataset=test_dataset,
-                                limit=100,
-                                frequency=20)
+                                   test_dataset=test_dataset,
+                                   limit=limit,
+                                   frequency=frequency)
 
-    avg_dis_acc = discriminative_test(model=timegan,
+    avg_dis_acc  = discriminative_test(model=timegan,
+                                       test_dataset=test_dataset,
+                                       limit=limit,
+                                       frequency=frequency)
+
+else:
+    avg_pred_loss = predictive_test(model=timegan,
                                     test_dataset=test_dataset,
-                                    limit=100,
-                                    frequency=20)
+                                    limit=limit,
+                                    frequency=frequency)
+
