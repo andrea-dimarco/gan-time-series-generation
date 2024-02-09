@@ -1,13 +1,14 @@
 TO DO:
 - study TimeGAN code
     - visualization_metrics
-    - discriminative_metrics
     - predictive_metrics
 
 - review Weights & Biases -> [here](https://www.youtube.com/playlist?list=PLD80i8An1OEGajeVo15ohAQYF1Ttle0lk)
 - make cool plots for the model
-- setup learning rate schedulers
-- train the model (on better hardware)
+
+- train the model
+    - fix S_loss
+    - fix G_loss
 
 - uninstall
     - wandb

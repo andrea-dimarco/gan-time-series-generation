@@ -12,13 +12,13 @@ class Config:
     dataset_folder:str = "../datasets/"# Path to the datasets folder 
 
     ## Training parameters
-    n_epochs: int = 20**1 #. . . . . . . Number of epochs of training
+    n_epochs: int = 10**3 #. . . . . . . Number of epochs of training
     early_stop_patience: int = 100 # . . Amount of epochs to wait for improvement
     decay_epoch: int = 0 # . . . . . . . Epoch from which to start lr decay
 
-    batch_size: int = 64 # . . . . . . . Amount of samples in each batch
-    lr: float = 0.0002 # . . . . . . . . adam: learning rate
-    b1: float = 0.5  # . . . . . . . . . adam: decay of first order momentum of gradient
+    batch_size: int = 128# . . . . . . . Amount of samples in each batch
+    lr: float = 0.0005 # . . . . . . . . adam: learning rate
+    b1: float = 0.75 # . . . . . . . . . adam: decay of first order momentum of gradient
     b2: float = 0.999 #. . . . . . . . . adam: decay of first order momentum of gradient
 
     lambda_cyc: float = 10.0 # . . . . . Cycle loss weight
@@ -43,9 +43,9 @@ class Config:
                                # . . . . . . . . . with random mutual correlations
     train_test_split: float = 0.7 #. . . Split between training and testing samples
     train_val_split: float = 0.8 # . . . Split between training and validating samples
-    num_samples: int = 10**4 # . . . . . Number of samples to generate (if any)
-    data_dim: int = 5 # . . . . . . . . Dimension of one generated sample (if any)
-    seq_len: int = 10 #. . . . . . . . . Length of the input sequences
+    num_samples: int =  5**5 # . . . . . Number of samples to generate (if any)
+    data_dim: int =  5 # . . . . . . . . Dimension of one generated sample (if any)
+    seq_len: int = 20 #. . . . . . . . . Length of the input sequences
 
 
     ## Network parameters

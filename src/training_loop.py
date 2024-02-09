@@ -110,7 +110,9 @@ def train(datasets_folder="./datasets/"):
     # Start the training
     trainer.fit(timegan)
 
-    #timegan.plot()
+    timegan.plot()
+
+    torch.save(timegan.state_dict(), "timegan-model.pth")
 
     # Log the trained model
     trainer.save_checkpoint('timegan.pth')
@@ -162,6 +164,6 @@ def validate_model(model:TimeGAN, datasets_folder:str="./datasets/", limit:int=1
 
 ### Testing Area
 datasets_folder = "./datasets/"
-generate_data(datasets_folder)
+#generate_data(datasets_folder)
 train(datasets_folder)
 

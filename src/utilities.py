@@ -83,8 +83,9 @@ def plot_process(samples, labels:List[str]|None=None, save_picture=False, show_p
 
 
 def compare_sequences(real: Tensor, fake: Tensor,
-                      real_label="Real sequence", fake_label="Fake Sequence",
-                      show_graph=False, save_img=False, img_idx=0):
+                      real_label:str="Real sequence", fake_label:str="Fake Sequence",
+                      show_graph:bool=False, save_img:bool=False,
+                      img_idx:int=0, img_name:str="plot", folder_path:str="./"):
     '''
     Plots two graphs with the two sequences.
 
@@ -94,6 +95,8 @@ def compare_sequences(real: Tensor, fake: Tensor,
         - `show_graph`: whether to display the graph or not
         - `save_img`: whether to save the image of the graph or not
         - `img_idx`: the id of the graph that will be used to name the file
+        - `img_name`: the file name of the graph that will be used to name the file
+        - `folder_path`: path to the folder where to save the image
 
     Returns:
         - numpy matrix with the pixel values for the image
@@ -113,7 +116,7 @@ def compare_sequences(real: Tensor, fake: Tensor,
     if show_graph:
         plt.show()
     if save_img:
-        plt.savefig(f"double-plot-{img_idx}.png")
+        plt.savefig(f"{folder_path}{img_name}-{img_idx}.png")
 
 
     # return picture as array

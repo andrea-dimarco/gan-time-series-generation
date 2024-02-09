@@ -372,15 +372,13 @@ class TimeGAN(pl.LightningModule):
             - `G_loss`: tensor with one element containing the Generator module's loss
         '''
         # Compute model outputs
-            # 1. Embedder
-        H = self.Emb(X)
-            # 2. Generator
+            # 1. Generator
         E_hat = self.Gen(Z) 
-            # 3. Supervisor
+            # 2. Supervisor
         H_hat = self.Sup(E_hat)
-            # 4. Recovery
+            # 3. Recovery
         X_hat = self.Rec(H_hat)
-            # 5. Discriminator
+            # 4. Discriminator
         Y_fake   = self.Dis(H_hat)
         Y_fake_e = self.Dis(E_hat)
 
@@ -405,7 +403,7 @@ class TimeGAN(pl.LightningModule):
     
 
     def S_loss(self, X: torch.Tensor, Z: torch.Tensor,
-               w1:float=0.4, w2:float=0.6
+               w1:float=0.4, w2:float=0.6, scaling_factor=1000
     ) -> torch.Tensor:
         '''
         This function computes the loss for the SUPERVISOR module.
@@ -426,10 +424,10 @@ class TimeGAN(pl.LightningModule):
         H_hat = self.Sup(E_hat)
         H_hat_supervise = self.Sup(H)
 
-
         # Loss components
             # 1. Reconstruction Loss
-        Rec_loss = self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
+        Rec_loss = self.reconstruction_loss(H, H_hat_supervise)
+        #Rec_loss = self.reconstruction_loss(H, H_hat_supervise)
             # 2. Deviation Loss
         Dev_loss_mu = torch.mean(
             torch.abs(
@@ -439,7 +437,7 @@ class TimeGAN(pl.LightningModule):
         Dev_loss = Dev_loss_mu + Dev_loss_std
 
         # Supervised loss
-        return w1*Rec_loss + w2*Dev_loss
+        return (w1*Rec_loss + w2*Dev_loss)*scaling_factor
 
 
     def E_loss(self, X: torch.Tensor,
@@ -470,7 +468,7 @@ class TimeGAN(pl.LightningModule):
         return w1*torch.sqrt(R_loss) + w2*S_loss
     
 
-    def R_loss(self, X: torch.Tensor
+    def R_loss(self, X: torch.Tensor, scaling_factor=100
     ) -> torch.Tensor:
         '''
         This function computes the loss for the RECOVERY module.
@@ -487,7 +485,7 @@ class TimeGAN(pl.LightningModule):
             # 2. Recovery
         X_tilde = self.Rec(H)
 
-        return self.reconstruction_loss(X, X_tilde)
+        return self.reconstruction_loss(X, X_tilde)*scaling_factor
 
 
     def training_step(self, 
