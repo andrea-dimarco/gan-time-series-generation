@@ -2,7 +2,6 @@
 
 # Libraries
 from typing import Sequence, List, Dict, Tuple, Union, Mapping
-import itertools
 
 from dataclasses import asdict
 from pathlib import Path
@@ -376,8 +375,6 @@ class TimeGAN(pl.LightningModule):
             # 5. Discriminator
         Y_fake   = self.Dis(H_hat)
         Y_fake_e = self.Dis(E_hat)
-
-        #print(f"\n\n Y_fake {Y_fake} \n\n")
 
 
         # Loss components
