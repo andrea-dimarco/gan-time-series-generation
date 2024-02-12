@@ -13,6 +13,9 @@ from data_generation import iid_sequence_generator, sine_process, wiener_process
 from dataset_handling import train_test_split
 from numpy import loadtxt, float32
 
+import warnings
+warnings.filterwarnings("ignore")
+
 
 def generate_data(datasets_folder="./datasets/"):
     hparams = Config()
