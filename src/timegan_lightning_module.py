@@ -18,11 +18,8 @@ import pytorch_lightning as pl
 import dataset_handling as dh
 import utilities as ut
 from hyperparameters import Config
-from modules.discriminator import Discriminator
-from modules.embedder import Embedder
-from modules.generator import Generator
-from modules.recovery import Recovery
-from modules.supervisor import Supervisor
+from modules.classifier_cell import ClassCell
+from modules.regressor_cell import RegCell
 
 '''
 This is the main model.
@@ -32,9 +29,7 @@ class TimeGAN(pl.LightningModule):
     def __init__(self,
         hparams: Union[Dict, Config],
         train_file_path: Path,
-        val_file_path: Path,
-        device: torch.device,
-        plot_losses: bool=False
+        val_file_path: Path
     ) -> None:
         '''
         The TimeGAN model.
@@ -47,63 +42,46 @@ class TimeGAN(pl.LightningModule):
         '''
         super().__init__()
         self.save_hyperparameters(asdict(hparams) if not isinstance(hparams, Mapping) else hparams)
-        self.dev = device
 
         # Dataset paths
         self.train_file_path = train_file_path
-        self.val_file_path  = val_file_path
+        self.val_file_path   = val_file_path
 
         # loss criteria
         self.discrimination_loss = torch.nn.BCELoss()
-        self.reconstruction_loss = torch.nn.L1Loss()#MSELoss()
-
-        # Expected shapes 
-        self.data_dim = self.hparams["data_dim"]
-        self.latent_space_dim = self.hparams["latent_space_dim"]
-        self.noise_dim = self.hparams["noise_dim"]
-        self.seq_len = self.hparams["seq_len"]
-
-        if plot_losses:
-            self.plot_losses = True
-            self.loss_history = []
-        else:
-            self.plot_losses = False
-            self.loss_history = None
+        self.reconstruction_loss = torch.nn.MSELoss()
 
         # Initialize Modules
-        self.Gen = Generator(input_size=self.noise_dim,
-                            hidden_size=self.hparams["gen_hidden_dim"],
-                            output_size=self.latent_space_dim,
-                            num_layers=self.hparams["gen_num_layers"],
-                            module_type=self.hparams["gen_module_type"],
-                            device=self.dev
-                            )
-        self.Emb = Embedder(input_size=self.data_dim,
-                            hidden_size=self.hparams["emb_hidden_dim"],
-                            output_size=self.latent_space_dim,
-                            num_layers=self.hparams["emb_num_layers"],
-                            module_type=self.hparams["emb_module_type"],
-                            device=self.dev
-                            )
-        self.Rec = Recovery(input_size=self.latent_space_dim,
-                            hidden_size=self.hparams["rec_hidden_dim"],
-                            output_size=self.data_dim,
-                            num_layers=self.hparams["rec_num_layers"],
-                            module_type=self.hparams["rec_module_type"],
-                            device=self.dev
-                            )
-        self.Sup = Supervisor(input_size=self.latent_space_dim,
-                              hidden_size=self.hparams["sup_hidden_dim"],
-                              num_layers=self.hparams["sup_num_layers"],
-                              module_type=self.hparams["sup_module_type"],
-                              device=self.dev
-                              )
-        self.Dis = Discriminator(input_size=self.latent_space_dim,
-                                 hidden_size=self.hparams["dis_hidden_dim"],
-                                 num_layers=self.hparams["dis_num_layers"],
-                                 module_type=self.hparams["dis_module_type"],
-                                 device=self.dev
-                                 )
+        self.Gen = RegCell(input_size=self.hparams["noise_dim"],
+                           hidden_size=self.hparams["gen_hidden_dim"],
+                           output_size=self.hparams["latent_space_dim"],
+                           num_layers=self.hparams["gen_num_layers"],
+                           module_type=self.hparams["gen_module_type"]
+                           )
+        self.Emb = RegCell(input_size=self.hparams["data_dim"],
+                           hidden_size=self.hparams["emb_hidden_dim"],
+                           output_size=self.latent_space_dim,
+                           num_layers=self.hparams["emb_num_layers"],
+                           module_type=self.hparams["emb_module_type"]
+                           )
+        self.Rec = RegCell(input_size=self.hparams["latent_space_dim"],
+                           hidden_size=self.hparams["rec_hidden_dim"],
+                           output_size=self.data_dim,
+                           num_layers=self.hparams["rec_num_layers"],
+                           module_type=self.hparams["rec_module_type"]
+                           )
+        self.Sup = RegCell(input_size=self.hparams["latent_space_dim"],
+                           hidden_size=self.hparams["sup_hidden_dim"],
+                           output_size=self.hparams["latent_space_dim"],
+                           num_layers=self.hparams["sup_num_layers"],
+                           module_type=self.hparams["sup_module_type"]
+                           )
+        self.Dis = ClassCell(input_size=self.hparams["latent_space_dim"],
+                             hidden_size=self.hparams["dis_hidden_dim"],
+                             num_classes=1,
+                             num_layers=self.hparams["dis_num_layers"],
+                             module_type=self.hparams["dis_module_type"]
+                             )
 
         # Image buffers
         #TODO: actually use this

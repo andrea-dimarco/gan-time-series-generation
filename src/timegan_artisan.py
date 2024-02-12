@@ -10,18 +10,14 @@ import utilities as ut
 from hyperparameters import Config
 
 # Data Generation
-from data_generation.wiener_process import save_wiener_process, multi_dim_wiener_process
+from data_generation.wiener_process import save_wiener_process
 from data_generation.sine_process import save_sine_process
 from data_generation.iid_sequence_generator import save_iid_sequence, save_cov_sequence
 
 # Modules
 import losses
-from modules.generator import Generator
-from modules.embedder import Embedder
-from modules.discriminator import Discriminator
-from modules.recovery import Recovery
-from modules.supervisor import Supervisor
-
+from modules.regressor_cell import RegCell
+from modules.classifier_cell import ClassCell
 
 # Functions
 def generate_data(datasets_folder="./datasets/"
@@ -77,39 +73,36 @@ hparams = Config()
 dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # modules
-Gen = Generator(input_size=hparams.noise_dim,
-                hidden_size=hparams.gen_hidden_dim,
-                output_size=hparams.latent_space_dim,
-                num_layers=hparams.gen_num_layers,
-                module_type=hparams.gen_module_type,
-                device=dev
+Gen = RegCell(input_size=hparams.noise_dim,
+              hidden_size=hparams.gen_hidden_dim,
+              output_size=hparams.latent_space_dim,
+              num_layers=hparams.gen_num_layers,
+              module_type=hparams.gen_module_type
+              )
+Emb = RegCell(input_size=hparams.data_dim,
+              hidden_size=hparams.emb_hidden_dim,
+              output_size=hparams.latent_space_dim,
+              num_layers=hparams.emb_num_layers,
+              module_type=hparams.emb_module_type
+              )
+Rec = RegCell(input_size=hparams.latent_space_dim,
+              hidden_size=hparams.rec_hidden_dim,
+              output_size=hparams.data_dim,
+              num_layers=hparams.rec_num_layers,
+              module_type=hparams.rec_module_type
+              )
+Sup = RegCell(input_size=hparams.latent_space_dim,
+              hidden_size=hparams.sup_hidden_dim,
+              output_size=hparams.latent_space_dim,
+              num_layers=hparams.sup_num_layers,
+              module_type=hparams.sup_module_type
+              )
+Dis = ClassCell(input_size=hparams.latent_space_dim,
+                hidden_size=hparams.dis_hidden_dim,
+                num_classes=1,
+                num_layers=hparams.dis_num_layers,
+                module_type=hparams.dis_module_type
                 )
-Emb = Embedder(input_size=hparams.data_dim,
-                hidden_size=hparams.emb_hidden_dim,
-                output_size=hparams.latent_space_dim,
-                num_layers=hparams.emb_num_layers,
-                module_type=hparams.emb_module_type,
-                device=dev
-                )
-Rec = Recovery(input_size=hparams.latent_space_dim,
-                hidden_size=hparams.rec_hidden_dim,
-                output_size=hparams.data_dim,
-                num_layers=hparams.rec_num_layers,
-                module_type=hparams.rec_module_type,
-                device=dev
-                )
-Sup = Supervisor(input_size=hparams.latent_space_dim,
-                hidden_size=hparams.sup_hidden_dim,
-                num_layers=hparams.sup_num_layers,
-                module_type=hparams.sup_module_type,
-                device=dev
-                )
-Dis = Discriminator(input_size=hparams.latent_space_dim,
-                    hidden_size=hparams.dis_hidden_dim,
-                    num_layers=hparams.dis_num_layers,
-                    module_type=hparams.dis_module_type,
-                    device=dev
-                    )
 
 # optimizers
 E_optim = torch.optim.Adam(

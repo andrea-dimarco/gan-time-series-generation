@@ -2,18 +2,16 @@ import torch
 
 
 # Modules
-from modules.generator import Generator
-from modules.embedder import Embedder
-from modules.discriminator import Discriminator
-from modules.recovery import Recovery
-from modules.supervisor import Supervisor
+from modules.regressor_cell import RegCell
+from modules.classifier_cell import ClassCell
 
 
 
 
 def D_loss(X: torch.Tensor, Z: torch.Tensor,
-           Emb:Embedder, Gen:Generator,
-           Sup:Supervisor, Dis:Discriminator, discrimination_loss=torch.nn.BCELoss(),
+           Emb:RegCell, Gen:RegCell,
+           Sup:RegCell, Dis:ClassCell,
+           discrimination_loss=torch.nn.BCELoss(),
            w1:float=0.40, w2:float=0.40, w3:float=0.20
 ) -> torch.Tensor:
     '''
@@ -54,8 +52,8 @@ def D_loss(X: torch.Tensor, Z: torch.Tensor,
 
 
 def G_loss(X: torch.Tensor, Z: torch.Tensor,
-           Gen:Generator, Sup:Supervisor,
-           Rec:Recovery, Dis:Discriminator, 
+           Gen:RegCell, Sup:RegCell,
+           Rec:RegCell, Dis:ClassCell, 
            discrimination_loss=torch.nn.BCELoss(), reconstruction_loss=torch.nn.MSELoss(),
            w1:float=0.10, w2:float=0.35, w3:float=0.10, w4:float=0.45
 ) -> torch.Tensor:
@@ -102,8 +100,9 @@ def G_loss(X: torch.Tensor, Z: torch.Tensor,
 
 
 def S_loss(X: torch.Tensor, Z: torch.Tensor,
-           Emb:Embedder, Gen:Generator,
-           Sup:Supervisor, reconstruction_loss=torch.nn.MSELoss(),
+           Emb:RegCell, Gen:RegCell,
+           Sup:RegCell,
+           reconstruction_loss=torch.nn.MSELoss(),
            w1:float=0.4, w2:float=0.6, scaling_factor=1000
 ) -> torch.Tensor:
     '''
@@ -143,8 +142,8 @@ def S_loss(X: torch.Tensor, Z: torch.Tensor,
 
 
 def E_loss(X: torch.Tensor,
-           Emb:Embedder, Sup:Supervisor,
-           Rec:Recovery,
+           Emb:RegCell, Sup:RegCell,
+           Rec:RegCell,
            reconstruction_loss=torch.nn.MSELoss(),
            w1: float=0.5, w2:float=0.5
 ) -> torch.Tensor:
@@ -175,7 +174,7 @@ def E_loss(X: torch.Tensor,
 
 
 def R_loss(X: torch.Tensor, 
-           Emb:Embedder, Rec:Recovery,
+           Emb:RegCell, Rec:RegCell,
            reconstruction_loss=torch.nn.MSELoss(),
            scaling_factor=10
 ) -> torch.Tensor:
