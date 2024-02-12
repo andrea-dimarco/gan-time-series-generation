@@ -1,5 +1,5 @@
 
-from timegan_lightning_module import TimeGAN
+from timegan_model import TimeGAN
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning import Trainer
@@ -83,9 +83,7 @@ def train(datasets_folder="./datasets/"):
     # Instantiate the model
     timegan = TimeGAN(hparams=hparams,
                     train_file_path=train_dataset_path,
-                    val_file_path=val_dataset_path,
-                    device=device,
-                    plot_losses=False
+                    val_file_path=val_dataset_path
                     )
 
     # Define the logger -> https://www.wandb.com/articles/pytorch-lightning-with-weights-biases.
@@ -110,14 +108,10 @@ def train(datasets_folder="./datasets/"):
     # Start the training
     trainer.fit(timegan)
 
-    #timegan.plot()
-
-    torch.save(timegan.state_dict(), "timegan-model.pth")
-
     # Log the trained model
-    trainer.save_checkpoint('timegan.pth')
-    wandb.save('timegan.pth')
-
+    trainer.save_checkpoint('timegan-checkpoint.pth')
+    wandb.save('timegan-wandb.pth') # use this for wandb online
+    torch.save(timegan.state_dict(), "timegan-model.pth") # use this when logging progress offline
     return timegan
 
 
@@ -164,6 +158,6 @@ def validate_model(model:TimeGAN, datasets_folder:str="./datasets/", limit:int=1
 
 ### Testing Area
 datasets_folder = "./datasets/"
-generate_data(datasets_folder)
+#generate_data(datasets_folder)
 train(datasets_folder)
 

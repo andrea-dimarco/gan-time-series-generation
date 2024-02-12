@@ -9,54 +9,14 @@ import torch
 import os
 
 # My stuff
-from timegan_lightning_module import TimeGAN
+from timegan_model import TimeGAN
 import utilities as ut
 from hyperparameters import Config
 from data_generation import sine_process, wiener_process, iid_sequence_generator
 from numpy import loadtxt, float32
 
-
-def generate_data(datasets_folder="./datasets/"
-                  ) -> Tuple[str, str]:
-    hparams = Config()
-
-    if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
-        # Generate and store the dataset as requested
-        dataset_path = f"{datasets_folder}{hparams.dataset_name}_generated_stream.csv"
-        if hparams.dataset_name == 'sine':
-            sine_process.save_sine_process(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-        elif hparams.dataset_name == 'wien':
-            wiener_process.save_wiener_process(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-            print("\n")
-        elif hparams.dataset_name == 'iid':
-            iid_sequence_generator.save_iid_sequence(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-        elif hparams.dataset_name == 'cov':
-            iid_sequence_generator.save_cov_sequence(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-        else:
-            raise ValueError
-        print(f"The {hparams.dataset_name} dataset has been succesfully created and stored into:\n\t- {dataset_path}")
-    elif hparams.dataset_name == 'real':
-        pass
-    else:
-        raise ValueError("Dataset not supported.")
-
-    if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
-        train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
-        val_dataset_path   = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
-
-        dh.train_test_split(X=loadtxt(dataset_path, delimiter=",", dtype=float32),
-                        split=hparams.train_test_split,
-                        train_file_name=train_dataset_path,
-                        test_file_name=val_dataset_path    
-                        )
-        print(f"The {hparams.dataset_name} dataset has been split successfully into:\n\t- {train_dataset_path}\n\t- {val_dataset_path}")
-    elif hparams.dataset_name == 'real':
-        train_dataset_path = datasets_folder + hparams.train_file_name
-        val_dataset_path   = datasets_folder + hparams.test_file_name
-    else:
-        raise ValueError("Dataset not supported.")
-    
-    return train_dataset_path, val_dataset_path
+import warnings
+warnings.filterwarnings("ignore")
 
 
 ## SETUP
@@ -142,18 +102,19 @@ def AD_tests(model:TimeGAN, test_dataset:dh.RealDataset
 
         # run tests
         for idx, (X, Z) in enumerate(test_dataset):
-            # Get the synthetic sequence
-            Z_seq = Z.reshape(1, hparams.seq_len, hparams.noise_dim)
-            X_seq = model(Z_seq).detach().reshape(hparams.seq_len, hparams.data_dim)
+            with torch.no_grad():
+                # Get the synthetic sequence
+                Z_seq = Z.reshape(1, hparams.seq_len, hparams.noise_dim)
+                X_seq = model(Z_seq).reshape(hparams.seq_len, hparams.data_dim)
 
-            # save synthetic sequence to a file
-            X_seq = np.transpose(X_seq.numpy())
-            df = pd.DataFrame(X_seq)
-            df.to_csv(AD_online_path, index=False, header=False)
+                # save synthetic sequence to a file
+                X_seq = np.transpose(X_seq.numpy())
+                df = pd.DataFrame(X_seq)
+                df.to_csv(AD_online_path, index=False, header=False)
 
-            # run simulation
-            anomalies_found = AD_API.pca_online(file_path=AD_online_path, folder=AD_folder, h=hparams.h, alpha=hparams.alpha)
-            TAR_tot += anomalies_found
+                # run simulation
+                anomalies_found = AD_API.pca_online(file_path=AD_online_path, folder=AD_folder, h=hparams.h, alpha=hparams.alpha)
+                TAR_tot += anomalies_found
         TAR_tot /= len(test_dataset)
 
         # free memory
@@ -195,9 +156,10 @@ def recovery_test(model:TimeGAN, test_dataset:dh.RealDataset,
         if idx >= horizon:
             break
         # embedd & reconstruct the sequence
-        X_seq = X.reshape(1, hparams.seq_len, hparams.data_dim)
-        X_rec = model.cycle(X_seq).detach().reshape(hparams.seq_len, hparams.data_dim)
-        loss += model.R_loss(X_seq).item()
+        with torch.no_grad():
+            X_seq = X.reshape(1, hparams.seq_len, hparams.data_dim)
+            X_rec = model.cycle(X_seq).reshape(hparams.seq_len, hparams.data_dim)
+            loss += model.R_loss(X_seq).item()
 
         # save a picture every frequency steps
         if (idx % frequency) == 0 and save_pictures:
@@ -237,10 +199,11 @@ def generation_test(model:TimeGAN, test_dataset:dh.RealDataset,
     for idx, (X, Z) in enumerate(test_dataset):
         if idx >= horizon:
             break
-        # Get the synthetic sequence
-        Z_seq = Z.reshape(1, hparams.seq_len, hparams.noise_dim)
-        X_seq = X.reshape(1, hparams.seq_len, hparams.data_dim)
-        X_hat = model(Z_seq).detach().reshape(hparams.seq_len, hparams.data_dim)
+        with torch.no_grad():
+            # Get the synthetic sequence
+            Z_seq = Z.reshape(1, hparams.seq_len, hparams.noise_dim)
+            X_seq = X.reshape(1, hparams.seq_len, hparams.data_dim)
+            X_hat = model(Z_seq).reshape(hparams.seq_len, hparams.data_dim)
 
         loss += model.G_loss(X_seq, Z_seq).item()
 
@@ -324,8 +287,7 @@ def predictive_test(model:TimeGAN, test_dataset:dh.RealDataset,
 # Instantiate the model
 timegan = TimeGAN(hparams=hparams,
                     train_file_path=train_dataset_path,
-                    val_file_path=test_dataset_path,
-                    device=torch.device('cpu')
+                    val_file_path=test_dataset_path
                     )
 timegan.load_state_dict(torch.load("./timegan-model.pth"))
 timegan.eval()

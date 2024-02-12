@@ -53,39 +53,39 @@ class TimeGAN(pl.LightningModule):
 
         # Initialize Modules
         self.Gen = RegCell(input_size=self.hparams["noise_dim"],
-                           hidden_size=self.hparams["gen_hidden_dim"],
                            output_size=self.hparams["latent_space_dim"],
+                           hidden_size=self.hparams["gen_hidden_dim"],
                            num_layers=self.hparams["gen_num_layers"],
                            module_type=self.hparams["gen_module_type"]
                            )
         self.Emb = RegCell(input_size=self.hparams["data_dim"],
+                           output_size=self.hparams["latent_space_dim"],
                            hidden_size=self.hparams["emb_hidden_dim"],
-                           output_size=self.latent_space_dim,
                            num_layers=self.hparams["emb_num_layers"],
                            module_type=self.hparams["emb_module_type"]
                            )
         self.Rec = RegCell(input_size=self.hparams["latent_space_dim"],
+                           output_size=self.hparams["data_dim"],
                            hidden_size=self.hparams["rec_hidden_dim"],
-                           output_size=self.data_dim,
                            num_layers=self.hparams["rec_num_layers"],
                            module_type=self.hparams["rec_module_type"]
                            )
         self.Sup = RegCell(input_size=self.hparams["latent_space_dim"],
-                           hidden_size=self.hparams["sup_hidden_dim"],
                            output_size=self.hparams["latent_space_dim"],
+                           hidden_size=self.hparams["sup_hidden_dim"],
                            num_layers=self.hparams["sup_num_layers"],
                            module_type=self.hparams["sup_module_type"]
                            )
         self.Dis = ClassCell(input_size=self.hparams["latent_space_dim"],
-                             hidden_size=self.hparams["dis_hidden_dim"],
                              num_classes=1,
+                             hidden_size=self.hparams["dis_hidden_dim"],
                              num_layers=self.hparams["dis_num_layers"],
                              module_type=self.hparams["dis_module_type"]
                              )
 
         # Image buffers
         #TODO: actually use this
-        self.fake_buffer = ut.ReplayBuffer()
+        #self.fake_buffer = ut.ReplayBuffer()
 
         # Forward pass cache to avoid re-doing some computation
         self.fake = None
@@ -110,9 +110,6 @@ class TimeGAN(pl.LightningModule):
         Returns:
             - the translated image with shape [batch, seq_len, data_dim]
         '''
-
-        assert(Z.size()[2] == self.noise_dim), "Invalid dimention for noise sample"
-
         # Generate a synthetic sequence in the latent space
         E_hat = self.Gen(Z) # generator
 
@@ -132,9 +129,6 @@ class TimeGAN(pl.LightningModule):
         Returns:
             - the translated image with shape [batch, seq_len, data_dim]
         '''
-
-        assert(X.size()[2] == self.data_dim), "Invalid dimention for data sample"
-
         # 1. Embedder
         H = self.Emb(X)
         # 2. Recovery
@@ -153,7 +147,7 @@ class TimeGAN(pl.LightningModule):
         train_loader = DataLoader(
             dh.RealDataset(
                 file_path=self.train_file_path,
-                seq_len=self.seq_len
+                seq_len=self.hparams["seq_len"]
             ),
             batch_size=self.hparams["batch_size"],
             shuffle=True,
@@ -175,10 +169,10 @@ class TimeGAN(pl.LightningModule):
         val_loader = DataLoader(
             dh.RealDataset(
                 file_path=self.val_file_path,
-                seq_len=self.seq_len
+                seq_len=self.hparams["seq_len"]
             ),
             batch_size=self.hparams["batch_size"],
-            shuffle=False,
+            shuffle=True,
             pin_memory=True
         )
         return val_loader
@@ -227,71 +221,41 @@ class TimeGAN(pl.LightningModule):
         R_optim = torch.optim.Adam(
             self.Rec.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
         )
-
-        # linear decay scheduler
-        #assert(self.hparams["n_epochs"] > self.hparams["decay_epoch"]), "Decay must start BEFORE the training ends!"
-        #linear_decay = lambda epoch: float(1.0 - max(0, epoch-self.hparams["decay_epoch"]) / (self.hparams["n_epochs"]-self.hparams["decay_epoch"]))
-        
-
+    
+    
         # Schedulers 
-        # lr_scheduler_E = torch.optim.lr_scheduler.LinearLR(
-        #     E_optim,
-        #     start_factor=1.0,
-        #     end_factor=0.1
-        # )
-        # lr_scheduler_D = torch.optim.lr_scheduler.LinearLR(
-        #     D_optim,
-        #     start_factor=1.0,
-        #     end_factor=0.1
-        # )
-        # lr_scheduler_G = torch.optim.lr_scheduler.LinearLR(
-        #     G_optim,
-        #     start_factor=1.0,
-        #     end_factor=0.1
-        # )
-        # lr_scheduler_S = torch.optim.lr_scheduler.LinearLR(
-        #     S_optim,
-        #     start_factor=1.0,
-        #     end_factor=0.1
-        # )
-        # lr_scheduler_R = torch.optim.lr_scheduler.LinearLR(
-        #     R_optim,
-        #     start_factor=1.0,
-        #     end_factor=0.1
-        # )
-
-        # return (
-        #     [E_optim, D_optim, G_optim, S_optim, R_optim],
-        #     [
-        #         {"scheduler": lr_scheduler_E, "interval": "epoch", "frequency": 1},
-        #         {"scheduler": lr_scheduler_D, "interval": "epoch", "frequency": 1},
-        #         {"scheduler": lr_scheduler_G, "interval": "epoch", "frequency": 1},
-        #         {"scheduler": lr_scheduler_S, "interval": "epoch", "frequency": 1},
-        #         {"scheduler": lr_scheduler_R, "interval": "epoch", "frequency": 1}
-        #     ]
-        # )
-        return E_optim, D_optim, G_optim, S_optim, R_optim
+        lr_scheduler_E = torch.optim.lr_scheduler.LinearLR(
+            E_optim,
+            start_factor=self.hparams["decay_start"],
+            end_factor=self.hparams["decay_end"]
+        )
+        lr_scheduler_D = torch.optim.lr_scheduler.LinearLR(
+            D_optim,
+            start_factor=self.hparams["decay_start"],
+            end_factor=self.hparams["decay_end"]
+        )
+        lr_scheduler_G = torch.optim.lr_scheduler.LinearLR(
+            G_optim,
+            start_factor=self.hparams["decay_start"],
+            end_factor=self.hparams["decay_end"]
+        )
+        lr_scheduler_S = torch.optim.lr_scheduler.LinearLR(
+            S_optim,
+            start_factor=self.hparams["decay_start"],
+            end_factor=self.hparams["decay_end"]
+        )
+        lr_scheduler_R = torch.optim.lr_scheduler.LinearLR(
+            R_optim,
+            start_factor=self.hparams["decay_start"],
+            end_factor=self.hparams["decay_end"]
+        )
+        #return E_optim, D_optim, G_optim, S_optim, R_optim
+        return [E_optim, D_optim, G_optim, S_optim, R_optim], [lr_scheduler_E, lr_scheduler_D, lr_scheduler_G, lr_scheduler_S, lr_scheduler_R]
 
 
-    def get_opt_idx(self, module_name: str
-    ) -> int:
-        '''
-        Given the module name returns the index of the optimizer.
-        The names are:
-
-            - Emb: optimzer for the Embedder
-            - Dis: optimizer for the Discriminator
-            - Gen: optimizer for the Generator      
-            - Sup: optimizer for the Supervisor
-            - Rec: optimizer for the Recovery
-
-        Arguments:
-            - `module_name`: the name of the module
-        '''
-        module_list = ['Emb','Dis','Gen','Sup','Rec']
-        assert(module_name in module_list), "typo!!"
-        return module_list.index(module_name)
-
+    def lr_scheduler_step(self, scheduler, optimizer_idx, metric) -> None:
+        return None
+    
 
     def D_loss(self, X: torch.Tensor, Z: torch.Tensor,
                w1:float=0.40, w2:float=0.40, w3:float=0.20
@@ -517,10 +481,19 @@ class TimeGAN(pl.LightningModule):
         R_optim.step()
 
         # Log results
-        if self.plot_losses:
-            self.loss_history.append( [G_loss.item(), D_loss.item(), G_loss.item(), S_loss.item(), R_loss.item()] )
         loss_dict = { "E_loss": E_loss, "D_loss": D_loss, "G_loss": G_loss, "S_loss": S_loss, "R_loss": R_loss }
         self.log_dict(loss_dict)
+
+
+        # Scheduler steps
+        if self.trainer.is_last_batch:
+            lr_scheduler_E, lr_scheduler_D, lr_scheduler_G, lr_scheduler_S, lr_scheduler_R = self.lr_schedulers()
+            lr_scheduler_E.step()
+            lr_scheduler_D.step()
+            lr_scheduler_G.step()
+            lr_scheduler_S.step()
+            lr_scheduler_R.step()
+
 
         return loss_dict
 
@@ -635,17 +608,4 @@ class TimeGAN(pl.LightningModule):
         self.log_dict({"val_loss": avg_loss})
         self.validation_step_output = []
         return {"val_loss": avg_loss}
-    
-
-    def plot(self) -> None:
-        '''
-        Plot funky graaph
-        '''
-        import numpy as np
-        if self.plot_losses and len(self.loss_history)>0:
-            labels=["E_loss", "D_loss", "G_loss", "S_loss", "R_loss"],
-            ut.plot_process(samples=np.asarray(self.loss_history),
-                            labels=labels,
-                            show_plot=True,
-                            save_picture=True)
     

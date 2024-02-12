@@ -105,18 +105,18 @@ class Cell(nn.Module):
         return x
     
 
-from src.modules.embedder import Embedder
+from src.modules.regressor_cell import RegCell
 class AE(nn.Module):
     def __init__(self, input_size, hidden_dim, output_size,
                  num_layers=1):
         super().__init__()
 
-        self.Emb = Embedder(input_size=input_size,
+        self.Emb = RegCell(input_size=input_size,
                         hidden_size=hidden_dim,
                         output_size=hidden_dim,
                         num_layers=num_layers
                         )
-        self.Rec = Embedder(input_size=hidden_dim,
+        self.Rec = RegCell(input_size=hidden_dim,
                         hidden_size=output_size,
                         output_size=output_size,
                         num_layers=num_layers

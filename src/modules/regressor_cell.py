@@ -42,6 +42,13 @@ class RegCell(nn.Module):
 
         self.fc = nn.Linear(in_features=hidden_size,
                             out_features=output_size)
+        
+        # initialize weights
+        for layer_p in self.module._all_weights:
+            for p in layer_p:
+                if 'weight' in p:
+                    nn.init.xavier_uniform_(self.module.__getattr__(p))
+        self.fc.apply(init_weights)
 
 
     def forward(self, x: Tensor) -> Tensor:
