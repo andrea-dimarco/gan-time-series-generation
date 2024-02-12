@@ -1,13 +1,13 @@
 
-from torch import nn, Tensor, zeros
-from torch.nn.init import normal_
+from torch import nn, Tensor
 import torch
 
 
 class Embedder(nn.Module):
     def __init__(self, input_size, hidden_size, output_size,
-                 device:torch.device, var=0.02, num_layers=3,
-                 module_type='gru', normalize=False
+                 device:torch.device, num_layers=3,
+                 module_type='gru', normalize=False,
+                 use_activation:bool=True
                  ) -> None:
         '''
         The Embedder maps the input sequence to a lower dimensionality representation.
@@ -24,20 +24,26 @@ class Embedder(nn.Module):
         super().__init__()
         self.module_type = module_type
         self.num_layers = num_layers
+        self.num_final_layers = int(num_layers/3+1)
         self.hidden_size = hidden_size
         self.output_size = output_size
         self.normalize = normalize
-        self.dev=device
+        self.dev = device
+        self.use_activation = use_activation
         
         # input.shape = ( batch_size, seq_len, feature_size )
         if self.module_type == 'rnn':
-            self.module = nn.RNN(input_size, output_size, num_layers, batch_first=True)
+            self.module = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
         elif self.module_type == 'gru':
-            self.module = nn.GRU(input_size, output_size, num_layers, batch_first=True)
+            self.module = nn.GRU(input_size, hidden_size, num_layers, batch_first=True)
         elif self.module_type == 'lstm':
-            self.module = nn.LSTM(input_size, output_size, num_layers, batch_first=True)
+            self.module = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
         else:
-            assert(False)
+            raise ValueError("Wrong module_type argument.")
+
+        self.fc = nn.Linear(hidden_size, output_size)
+
+        self.activation = nn.Sigmoid()
 
         # Normalization
         if self.normalize:
@@ -45,32 +51,34 @@ class Embedder(nn.Module):
         else:
             self.norm = None
 
-        # Activation
-        self.activation = nn.Sigmoid()
-
-        # initialize weights
-        for layer_p in self.module._all_weights:
-            for p in layer_p:
-                if 'weight' in p:
-                    normal_(self.module.__getattr__(p), 0.0, var)
-
 
     def forward(self, x: Tensor) -> Tensor:
         '''
         Forward pass
         '''
-        batch_size = x.size()[0]
-        h0 = zeros(self.num_layers, batch_size, self.output_size, device=self.dev) # initial state
-
         if self.module_type == 'lstm':
-            c0 = zeros(self.num_layers, batch_size, self.output_size, device=self.dev)
-            out, _ = self.module(x, (c0, h0)) # shape = ( batch_size, seq_len, hidden_size )
+            out, _ = self.module(x) # shape = ( batch_size, seq_len, output_size )
         else:
-            out, _ = self.module(x, h0) # shape = ( batch_size, seq_len, hidden_size )
+            out, _ = self.module(x) # shape = ( batch_size, seq_len, output_size )
 
         if self.normalize:
             # required shape (batch_size, output_size, seq_len )
             out = self.norm(out.permute(0, 2, 1)).permute(0, 2, 1)
 
-        out = self.activation(out)
+        out = self.fc(out)
+
+        if self.use_activation:
+            out = self.activation(out)
+
         return out
+
+
+
+def init_weights(m):
+    '''
+    Initialized the weights of the Linear layer.
+    '''
+    if isinstance(m, nn.Linear):
+        torch.nn.init(m.weight)
+        if hasattr(m, "bias") and m.bias is not None:
+            torch.nn.init.zeros_(m.bias)

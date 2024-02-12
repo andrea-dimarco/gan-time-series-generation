@@ -4,7 +4,7 @@ import torch
 
 
 class Discriminator(nn.Module):
-    def __init__(self, input_size, hidden_size,
+    def __init__(self, input_size:int, hidden_size:int,
                  device:torch.device, var=0.02,
                  num_layers=3, normalize=True, 
                  module_type='gru'
@@ -20,7 +20,6 @@ class Discriminator(nn.Module):
             - device: which device should the model run on
             - alpha: parameter for the LeakyReLU function
         '''
-        
         assert(module_type in ['rnn', 'gru', 'lstm'])
 
         super().__init__()
@@ -47,7 +46,6 @@ class Discriminator(nn.Module):
 
         # extra linear layer
         self.block = nn.Sequential(
-            nn.BatchNorm1d(hidden_size),
             nn.Linear(hidden_size, 1),
             nn.Sigmoid()
         )
@@ -64,19 +62,15 @@ class Discriminator(nn.Module):
         '''
         Forward pass
         '''
-        
-        batch_size = x.size()[0]
         out = x # <- ( batch_size, seq_len, input_size)
         
         if self.normalize:
             out = self.norm(out.permute(0,2,1)).permute(0,2,1) # <- needs ( batch_size, input_size, seq_len )
 
-        h0 = zeros(self.num_layers, batch_size, self.hidden_size, device=self.dev)
         if self.module_type == 'lstm':
-            c0 = zeros(self.num_layers, batch_size, self.hidden_size, device=self.dev)
-            out, _ = self.module(out, (c0, h0)) # shape = ( batch_size, seq_len, hidden_size )
+            out, _ = self.module(out) # shape = ( batch_size, seq_len, hidden_size )
         else:
-            out, _ = self.module(out, h0) # shape = ( batch_size, seq_len, hidden_size )
+            out, _ = self.module(out) # shape = ( batch_size, seq_len, hidden_size )
 
         out = out[:,-1,:] # only consider the last output of each sequence
 

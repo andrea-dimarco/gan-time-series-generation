@@ -3,9 +3,9 @@ from torch.nn.init import normal_
 import torch
 
 class Supervisor(nn.Module):
-    def __init__(self, input_size, device: torch.device,
-                 var=0.02, num_layers=3,
-                 module_type='gru'
+    def __init__(self, input_size:int, hidden_size:int,
+                 device:torch.device, normalize:bool=False,
+                 num_layers:int=3, module_type:str='gru'
                 ) -> None:
         '''
         The Supervisors takes a sequence in the latent space and returns a new sequence in the latent space.
@@ -21,47 +21,60 @@ class Supervisor(nn.Module):
             - seq_len: length of the sequence to embed
             - device: which device should the model run on
         '''
-        
         assert(module_type in ['rnn', 'gru', 'lstm'])
 
         super().__init__()
         self.module_type = module_type
         self.num_layers = num_layers
+        self.num_final_layers = int(num_layers/3+1)
+        self.hidden_size = hidden_size
         self.output_size = input_size
+        self.normalize = normalize
         self.dev = device
         
         # input.shape = ( batch_size, seq_len, feature_size )
         if self.module_type == 'rnn':
-            self.module = nn.RNN(input_size, input_size, num_layers, batch_first=True)
+            self.module = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
         elif self.module_type == 'gru':
-            self.module = nn.GRU(input_size, input_size, num_layers, batch_first=True)
+            self.module = nn.GRU(input_size, hidden_size, num_layers, batch_first=True)
         elif self.module_type == 'lstm':
-            self.module = nn.LSTM(input_size, input_size, num_layers, batch_first=True)
+            self.module = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
         else:
-            assert(False)
+            raise ValueError("Wrong module_type argument.")
 
-        # Activation
-        self.activation = nn.Sigmoid()
+        self.fc = nn.Linear(hidden_size, input_size)
 
-        # initialize weights
-        for layer_p in self.module._all_weights:
-            for p in layer_p:
-                if 'weight' in p:
-                    normal_(self.module.__getattr__(p), 0.0, var)
+        # Normalization
+        if self.normalize:
+            self.norm = nn.InstanceNorm1d(input_size, affine=True)
+        else:
+            self.norm = None
 
 
     def forward(self, x: Tensor) -> Tensor:
         '''
         Forward pass
         '''
-        batch_size = x.size()[0]
-        h0 = zeros(self.num_layers, batch_size, self.output_size, device=self.dev) # initial state
-
         if self.module_type == 'lstm':
-            c0 = zeros(self.num_layers, batch_size, self.output_size, device=self.dev)
-            out, _ = self.module(x, (c0, h0)) # shape = ( batch_size, seq_len, output_size )
+            out, _ = self.module(x) # shape = ( batch_size, seq_len, output_size )
         else:
-            out, _ = self.module(x, h0) # shape = ( batch_size, seq_len, output_size )
+            out, _ = self.module(x) # shape = ( batch_size, seq_len, output_size )
 
-        out = self.activation(out)
+        if self.normalize:
+            # required shape (batch_size, output_size, seq_len )
+            out = self.norm(out.permute(0, 2, 1)).permute(0, 2, 1)
+
+        out = self.fc(out)
+
         return out
+
+
+
+def init_weights(m):
+    '''
+    Initialized the weights of the Linear layer.
+    '''
+    if isinstance(m, nn.Linear):
+        torch.nn.init(m.weight)
+        if hasattr(m, "bias") and m.bias is not None:
+            torch.nn.init.zeros_(m.bias)

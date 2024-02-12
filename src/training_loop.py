@@ -1,10 +1,10 @@
 
-from timegan_model import TimeGAN
+from timegan_lightning_module import TimeGAN
 from pytorch_lightning.loggers.wandb import WandbLogger
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning import Trainer
 import wandb
-from hyperparamets import Config
+from hyperparameters import Config
 
 import torch
 
@@ -123,7 +123,7 @@ def train(datasets_folder="./datasets/"):
 
 def validate_model(model:TimeGAN, datasets_folder:str="./datasets/", limit:int=1) -> None:
     '''
-    Run some tests after the traning has ended.
+    Plot the synthetic sequences and compare the original sequences with ther reconstructions
 
     Arguments:
         - model: the TimeGAN model, preferrably already trained.

@@ -8,12 +8,56 @@ import numpy as np
 import torch
 import os
 
-
-from timegan_model import TimeGAN
+# My stuff
+from timegan_lightning_module import TimeGAN
 import utilities as ut
-from hyperparamets import Config
+from hyperparameters import Config
 from data_generation import sine_process, wiener_process, iid_sequence_generator
 from numpy import loadtxt, float32
+
+
+def generate_data(datasets_folder="./datasets/"
+                  ) -> Tuple[str, str]:
+    hparams = Config()
+
+    if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
+        # Generate and store the dataset as requested
+        dataset_path = f"{datasets_folder}{hparams.dataset_name}_generated_stream.csv"
+        if hparams.dataset_name == 'sine':
+            sine_process.save_sine_process(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
+        elif hparams.dataset_name == 'wien':
+            wiener_process.save_wiener_process(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
+            print("\n")
+        elif hparams.dataset_name == 'iid':
+            iid_sequence_generator.save_iid_sequence(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
+        elif hparams.dataset_name == 'cov':
+            iid_sequence_generator.save_cov_sequence(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
+        else:
+            raise ValueError
+        print(f"The {hparams.dataset_name} dataset has been succesfully created and stored into:\n\t- {dataset_path}")
+    elif hparams.dataset_name == 'real':
+        pass
+    else:
+        raise ValueError("Dataset not supported.")
+
+    if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
+        train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
+        val_dataset_path   = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
+
+        dh.train_test_split(X=loadtxt(dataset_path, delimiter=",", dtype=float32),
+                        split=hparams.train_test_split,
+                        train_file_name=train_dataset_path,
+                        test_file_name=val_dataset_path    
+                        )
+        print(f"The {hparams.dataset_name} dataset has been split successfully into:\n\t- {train_dataset_path}\n\t- {val_dataset_path}")
+    elif hparams.dataset_name == 'real':
+        train_dataset_path = datasets_folder + hparams.train_file_name
+        val_dataset_path   = datasets_folder + hparams.test_file_name
+    else:
+        raise ValueError("Dataset not supported.")
+    
+    return train_dataset_path, val_dataset_path
+
 
 ## SETUP
 # Parameters

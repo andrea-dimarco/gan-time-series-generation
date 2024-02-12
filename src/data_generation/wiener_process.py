@@ -8,7 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt 
 
 
-def weiner_process(N=1000, lower_bound=0.0, upper_bound=1.0, alpha=0.01):
+def weiner_process(N:int=1000, lower_bound:float=0.0, upper_bound:float=1.0, alpha:float=0.01):
     '''
     This function samples a Weiner process 
      and makes sure it stays withing bounds
@@ -26,7 +26,7 @@ def weiner_process(N=1000, lower_bound=0.0, upper_bound=1.0, alpha=0.01):
     return Zt
 
 
-def multi_dim_wiener_process(p=100, N=1000, corr=None):
+def multi_dim_wiener_process(p:int=100, N:int=1000, corr=None):
     '''
     This function generates a dataset from a multi dimensional wiener process
      sampled from a randomly generated correlation matrix between the dimensions. 
@@ -54,7 +54,7 @@ def multi_dim_wiener_process(p=100, N=1000, corr=None):
     return M
 
 
-def get_rnd_corr_matrix(p):
+def get_rnd_corr_matrix(p:int):
     '''
     Generate randomly a (p,p) symmetric matrix representing the processes correlations with eachother
      corr[i][j] will represent how much process [i] is related with process [j]
@@ -83,7 +83,7 @@ def get_rnd_corr_matrix(p):
     return corr
 
 
-def save_wiener_process(p=100, N=1000, file_path="./generated_stream.csv", show_plot=False):
+def save_wiener_process(p:int=100, N:int=1000, file_path:str="./generated_stream.csv", show_plot:bool=False):
     '''
     Save the generated samples as a csv file.
 

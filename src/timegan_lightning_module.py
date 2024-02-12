@@ -17,7 +17,7 @@ import pytorch_lightning as pl
 # My modules
 import dataset_handling as dh
 import utilities as ut
-from hyperparamets import Config
+from hyperparameters import Config
 from modules.discriminator import Discriminator
 from modules.embedder import Embedder
 from modules.generator import Generator
@@ -93,6 +93,7 @@ class TimeGAN(pl.LightningModule):
                             device=self.dev
                             )
         self.Sup = Supervisor(input_size=self.latent_space_dim,
+                              hidden_size=self.hparams["sup_hidden_dim"],
                               num_layers=self.hparams["sup_num_layers"],
                               module_type=self.hparams["sup_module_type"],
                               device=self.dev
