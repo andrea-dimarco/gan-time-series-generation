@@ -55,7 +55,7 @@ class TimeGAN(pl.LightningModule):
 
         # loss criteria
         self.discrimination_loss = torch.nn.BCELoss()
-        self.reconstruction_loss = torch.nn.MSELoss()
+        self.reconstruction_loss = torch.nn.L1Loss()#MSELoss()
 
         # Expected shapes 
         self.data_dim = self.hparams["data_dim"]
@@ -137,11 +137,8 @@ class TimeGAN(pl.LightningModule):
         # Generate a synthetic sequence in the latent space
         E_hat = self.Gen(Z) # generator
 
-        # Tune the sequence (superflous step)
-        H_hat = self.Sup(E_hat) # supervisor
-
         # Recontrust fake data from the synthetic sequence
-        X_hat = self.Rec(H_hat) # recovery
+        X_hat = self.Rec(E_hat) # recovery
 
         return X_hat
 
@@ -161,10 +158,8 @@ class TimeGAN(pl.LightningModule):
 
         # 1. Embedder
         H = self.Emb(X)
-        # 2. Supervisor
-        H_hat_supervise = self.Sup(H)
-        # 3. Recovery
-        X_tilde = self.Rec(H_hat_supervise)
+        # 2. Recovery
+        X_tilde = self.Rec(H)
 
         return X_tilde
 
@@ -359,7 +354,7 @@ class TimeGAN(pl.LightningModule):
 
 
     def G_loss(self, X: torch.Tensor, Z: torch.Tensor,
-                w1:float=0.10, w2:float=0.10, w3:float=0.35, w4:float=0.45
+                w1:float=0.10, w2:float=0.35, w3:float=0.10, w4:float=0.45
     ) -> torch.Tensor:
         '''
         This function computes the loss for the GENERATOR module.
@@ -377,7 +372,7 @@ class TimeGAN(pl.LightningModule):
             # 2. Supervisor
         H_hat = self.Sup(E_hat)
             # 3. Recovery
-        X_hat = self.Rec(H_hat)
+        X_hat = self.Rec(E_hat)
             # 4. Discriminator
         Y_fake   = self.Dis(H_hat)
         Y_fake_e = self.Dis(E_hat)
@@ -393,10 +388,10 @@ class TimeGAN(pl.LightningModule):
         S_loss    = self.reconstruction_loss(H_hat[:,1:,:], E_hat[:,:-1,:])
             # 4. Deviation loss
         G_loss_mu = torch.mean(
+            torch.abs((torch.mean(X_hat, dim=0)) - (torch.mean(X, dim=0))))
+        G_loss_std = torch.mean(
             torch.abs(
                 torch.sqrt(torch.var(X_hat, dim=0) + 1e-6) - torch.sqrt(torch.var(X, dim=0) + 1e-6)))
-        G_loss_std = torch.mean(
-            torch.abs((torch.mean(X_hat, dim=0)) - (torch.mean(X, dim=0))))
         G_loss_V  = G_loss_mu + G_loss_std
 
         return w1*GA_loss + w2*GA_loss_e + w3*S_loss*0.0 + w4*G_loss_V 
@@ -463,12 +458,12 @@ class TimeGAN(pl.LightningModule):
 
         # Loss Components
         R_loss = self.reconstruction_loss(X, X_tilde)
-        S_loss = self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
+        S_loss = self.reconstruction_loss(H, H_hat_supervise)
 
-        return w1*torch.sqrt(R_loss) + w2*S_loss
+        return w1*R_loss + w2*S_loss
     
 
-    def R_loss(self, X: torch.Tensor, scaling_factor=100
+    def R_loss(self, X: torch.Tensor, scaling_factor=10
     ) -> torch.Tensor:
         '''
         This function computes the loss for the RECOVERY module.
@@ -508,7 +503,6 @@ class TimeGAN(pl.LightningModule):
         '''
         # Process the batch
         X_batch, Z_batch = batch
-
         E_optim, D_optim, G_optim, S_optim, R_optim = self.optimizers()
         
         # Zero grad
@@ -545,7 +539,7 @@ class TimeGAN(pl.LightningModule):
 
         # Log results
         if self.plot_losses:
-            self.loss_history.append( [G_loss.item()])#, D_loss.item(), G_loss.item(), S_loss.item(), R_loss.item()] )
+            self.loss_history.append( [G_loss.item(), D_loss.item(), G_loss.item(), S_loss.item(), R_loss.item()] )
         loss_dict = { "E_loss": E_loss, "D_loss": D_loss, "G_loss": G_loss, "S_loss": S_loss, "R_loss": R_loss }
         self.log_dict(loss_dict)
 
@@ -569,7 +563,6 @@ class TimeGAN(pl.LightningModule):
         '''
         # Process batch
         X_batch, Z_batch = batch
-        
 
         # Losses
         D_loss = self.D_loss(X=X_batch, Z=Z_batch)
@@ -671,8 +664,9 @@ class TimeGAN(pl.LightningModule):
         '''
         import numpy as np
         if self.plot_losses and len(self.loss_history)>0:
-            # labels=["E_loss", "D_loss", "G_loss", "S_loss", "R_loss"],
+            labels=["E_loss", "D_loss", "G_loss", "S_loss", "R_loss"],
             ut.plot_process(samples=np.asarray(self.loss_history),
+                            labels=labels,
                             show_plot=True,
                             save_picture=True)
     

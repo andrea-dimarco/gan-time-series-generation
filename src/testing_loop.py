@@ -195,8 +195,10 @@ def generation_test(model:TimeGAN, test_dataset:dh.RealDataset,
             break
         # Get the synthetic sequence
         Z_seq = Z.reshape(1, hparams.seq_len, hparams.noise_dim)
+        X_seq = X.reshape(1, hparams.seq_len, hparams.data_dim)
         X_hat = model(Z_seq).detach().reshape(hparams.seq_len, hparams.data_dim)
-        loss += model.G_loss(X, Z).item()
+
+        loss += model.G_loss(X_seq, Z_seq).item()
 
         # save a picture every frequency steps
         if (idx % frequency) == 0 and save_pictures:
@@ -247,7 +249,7 @@ def discriminative_test(model:TimeGAN, test_dataset:dh.RealDataset,
         good_preds += Y_real + Y_fake
 
     loss = good_preds/(horizon*2)
-    print(f"Avg {test_name} loss: {loss}")
+    print(f"Avg discriminator accuracy: {round(loss*100, 2)}%")
     return loss
 
 
@@ -295,7 +297,8 @@ test_dataset = dh.RealDataset(
 ## TESTING LOOP
 limit = 100
 frequency = 20
-if False:
+if True:
+
     avg_rec_loss = recovery_test(model=timegan,
                                  test_dataset=test_dataset,
                                  limit=limit,
@@ -308,8 +311,7 @@ if False:
 
     avg_dis_acc  = discriminative_test(model=timegan,
                                        test_dataset=test_dataset,
-                                       limit=limit,
-                                       frequency=frequency)
+                                       limit=limit)
 
 else:
     avg_pred_loss = predictive_test(model=timegan,
