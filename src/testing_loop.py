@@ -174,7 +174,7 @@ def recovery_test(model:TimeGAN, test_dataset:dh.RealDataset,
     return loss
 
 
-def generation_test(model:TimeGAN, test_dataset:dh.RealDataset,
+def generation_seq_test(model:TimeGAN, test_dataset:dh.RealDataset,
                     limit:int=0, frequency:int=10,
                     save_pictures:bool=True, folder_path:str="./test_results/generation_tests/"
                     ) -> float:
@@ -220,7 +220,7 @@ def generation_test(model:TimeGAN, test_dataset:dh.RealDataset,
     return loss
 
 
-def discriminative_test(model:TimeGAN, test_dataset:dh.RealDataset,
+def discriminative_seq_test(model:TimeGAN, test_dataset:dh.RealDataset,
                         limit:int=0
                         ) -> float:
     '''
@@ -282,6 +282,36 @@ def predictive_test(model:TimeGAN, test_dataset:dh.RealDataset,
     pass
 
 
+def generate_stream_test(model:TimeGAN, test_dataset:dh.RealDataset,
+                                    limit:int=0, save_pic:bool=False,
+                                    show_plot:bool=True, folder_path:str="./",
+                                    compare:bool=True
+) -> None:
+    '''
+    Generates a synthetic sequence and plots it against the real one.
+    '''
+    with torch.no_grad():
+        horizon = limit if limit>0 else test_dataset.n_samples
+        timegan.eval()
+        synth = timegan(test_dataset.get_whole_noise_stream()[:horizon]
+                        ).reshape(test_dataset.n_samples, test_dataset.p)
+        if compare:
+            ut.compare_sequences(real=test_dataset.get_whole_stream()[:horizon],
+                                fake=synth,
+                                real_label="Original data",
+                                fake_label="Synthetic Data",
+                                img_name="real-vs-ssynth",
+                                save_img=save_pic,
+                                show_graph=show_plot,
+                                folder_path=folder_path
+                                )
+        else:
+            ut.plot_process(samples=synth,
+                            save_picture=save_pic,
+                            show_plot=show_plot,
+                            folder_path=folder_path,
+                            img_name="synth")
+
 
 ## RUN TESTS
 # Instantiate the model
@@ -301,23 +331,32 @@ test_dataset = dh.RealDataset(
 
 
 ## TESTING LOOP
-limit = 100
+limit = 0
 frequency = 20
 if True:
 
     avg_rec_loss = recovery_test(model=timegan,
                                  test_dataset=test_dataset,
                                  limit=limit,
-                                 frequency=frequency)
+                                 frequency=frequency
+                                 )
 
-    avg_gen_loss = generation_test(model=timegan,
+    avg_gen_loss = generation_seq_test(model=timegan,
                                    test_dataset=test_dataset,
                                    limit=limit,
-                                   frequency=frequency)
+                                   frequency=frequency
+                                   )
 
-    avg_dis_acc  = discriminative_test(model=timegan,
+    avg_dis_acc  = discriminative_seq_test(model=timegan,
                                        test_dataset=test_dataset,
-                                       limit=limit)
+                                       limit=limit
+                                       )
+    
+    generate_stream_test(model=timegan,
+                               test_dataset=test_dataset,
+                               limit=limit,
+                               folder_path="./test_results/generation_tests/"
+                               )
 
 else:
     avg_pred_loss = predictive_test(model=timegan,

@@ -59,7 +59,10 @@ class ReplayBuffer:
         return cat(to_return)
     
 
-def plot_process(samples, labels:List[str]|None=None, save_picture=False, show_plot=True, img_idx=0):
+def plot_process(samples, labels:List[str]|None=None,
+                 save_picture=False, show_plot=True,
+                 img_idx=0, img_name:str="plot",
+                 folder_path:str="./") -> None:
     '''
     Plots all the dimensions of the generated dataset.
     '''
@@ -76,7 +79,7 @@ def plot_process(samples, labels:List[str]|None=None, save_picture=False, show_p
         
         # function to show the plot 
         if save_picture:
-            plt.savefig(f"plot-{img_idx}.png")
+            plt.savefig(f"{folder_path}{img_name}-{img_idx}.png")
         if show_plot:
             plt.show()
         plt.clf()
