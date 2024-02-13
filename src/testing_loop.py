@@ -19,16 +19,6 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-## SETUP
-# Parameters
-hparams = Config()
-datasets_folder = "./datasets/"
-train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
-test_dataset_path   = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-print(f"Using device {device}.")
-
-
 def generate_data(datasets_folder="./datasets/"
                   ) -> Tuple[str, str]:
     hparams = Config()
@@ -293,7 +283,7 @@ def generate_stream_test(model:TimeGAN, test_dataset:dh.RealDataset,
     with torch.no_grad():
         horizon = limit if limit>0 else test_dataset.n_samples
         timegan.eval()
-        synth = timegan(test_dataset.get_whole_noise_stream()[:horizon]
+        synth = model(test_dataset.get_whole_noise_stream()[:horizon]
                         ).reshape(test_dataset.n_samples, test_dataset.p)
         print("Synthetic stream has been generated.")
         if compare:
@@ -319,6 +309,14 @@ def generate_stream_test(model:TimeGAN, test_dataset:dh.RealDataset,
 # # # # # # # # 
 # Testing Area #
  # # # # # # # #
+## SETUP
+hparams = Config()
+datasets_folder = "./datasets/"
+train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
+test_dataset_path   = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(f"Using device {device}.")
+
 # Instantiate the model
 timegan = TimeGAN(hparams=hparams,
                     train_file_path=train_dataset_path,
@@ -339,7 +337,7 @@ test_dataset = dh.RealDataset(
 limit = hparams.limit
 frequency = 20
 if True:
-    
+    '''
     avg_rec_loss = recovery_test(model=timegan,
                                  test_dataset=test_dataset,
                                  limit=limit,
@@ -356,11 +354,11 @@ if True:
                                        test_dataset=test_dataset,
                                        limit=limit
                                        )
-
+    '''
     generate_stream_test(model=timegan,
                                test_dataset=test_dataset,
                                limit=limit,
-                               folder_path="./test_results/generation_tests/",
+                               folder_path="./test_results/",
                                save_pic=True,
                                show_plot=True
                                )
@@ -369,5 +367,6 @@ else:
     avg_pred_loss = predictive_test(model=timegan,
                                     test_dataset=test_dataset,
                                     limit=limit,
-                                    frequency=frequency)
+                                    frequency=frequency
+                                    )
 

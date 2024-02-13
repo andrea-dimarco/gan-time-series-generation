@@ -27,7 +27,6 @@ def generate_data(datasets_folder="./datasets/"):
             sine_process.save_sine_process(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
         elif hparams.dataset_name == 'wien':
             wiener_process.save_wiener_process(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-            print("\n")
         elif hparams.dataset_name == 'iid':
             iid_sequence_generator.save_iid_sequence(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
         elif hparams.dataset_name == 'cov':
@@ -108,8 +107,8 @@ def train(datasets_folder="./datasets/"):
     trainer.fit(timegan)
 
     # Log the trained model
-    trainer.save_checkpoint('timegan-checkpoint.pth')
-    wandb.save('timegan-wandb.pth') # use this for wandb online
+    #trainer.save_checkpoint('timegan-checkpoint.pth')
+    #wandb.save('timegan-wandb.pth') # use this for wandb online
     torch.save(timegan.state_dict(), "timegan-model.pth") # use this when logging progress offline
     return timegan
 
@@ -172,7 +171,7 @@ def set_seed(seed=0) -> None:
 # Training Area #
 # # # # # # # # #
 datasets_folder = "./datasets/"
-generate_data(datasets_folder)
-set_seed(seed=0)
+#generate_data(datasets_folder)
+set_seed(seed=69)
 train(datasets_folder)
 

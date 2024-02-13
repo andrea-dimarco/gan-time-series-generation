@@ -15,7 +15,7 @@ from data_generation.sine_process import save_sine_process
 from data_generation.iid_sequence_generator import save_iid_sequence, save_cov_sequence
 
 # Modules
-import losses
+import artisan.losses as losses
 from modules.regressor_cell import RegCell
 from modules.classifier_cell import ClassCell
 
