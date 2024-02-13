@@ -88,13 +88,15 @@ class TimeGAN(pl.LightningModule):
                              num_layers=self.hparams["dis_num_layers"],
                              module_type=self.hparams["dis_module_type"]
                              )
-
-        # Image buffers
-        #TODO: actually use this
-        #self.fake_buffer = ut.ReplayBuffer()
+        # self.DataDis = ClassCell(input_size=self.hparams["data_dim"],
+        #                          num_classes=1,
+        #                          hidden_size=self.hparams["dis_hidden_dim"],
+        #                          num_layers=self.hparams["dis_num_layers"],
+        #                          module_type=self.hparams["dis_module_type"]
+        #                          )
 
         # Forward pass cache to avoid re-doing some computation
-        self.fake = None
+        #self.fake = None
 
         # It avoids wandb logging when lighting does a sanity check on the validation
         self.is_sanity = True
@@ -274,7 +276,7 @@ class TimeGAN(pl.LightningModule):
     
 
     def D_loss(self, X: torch.Tensor, Z: torch.Tensor,
-               w1:float=0.40, w2:float=0.40, w3:float=0.20
+               w1:float=0.40, w2:float=0.20, w3:float=0.40
     ) -> torch.Tensor:
         '''
         This function computes the loss for the DISCRIMINATOR module.
@@ -311,6 +313,37 @@ class TimeGAN(pl.LightningModule):
 
         return w1*loss_real + w2*loss_fake + w3*loss_fake_e
 
+    '''
+    def DD_loss(self, X: torch.Tensor, Z: torch.Tensor,
+               w1:float=0.40, w2:float=0.20, w3:float=0.40
+    ) -> torch.Tensor:
+        # Compute model outputs
+            # 1. Embedder
+        H = self.Emb(X)
+            # 2. Generator
+        E_hat = self.Gen(Z) 
+            # 3. Supervisor
+        H_hat = self.Sup(E_hat)
+            # 4. Recovery
+        X_tilde = self.Rec(H)
+        X_hat   = self.Rec(E_hat)
+        X_hat_s = self.Rec(H_hat)
+            # 5. Discriminator
+        Y_real   = self.DataDis(X_tilde)
+        Y_fake   = self.DataDis(X_hat_s)
+        Y_fake_e = self.DataDis(X_hat)
+
+        # Adversarial truths
+        valid = torch.ones_like(Y_real)
+        fake  = torch.zeros_like(Y_fake)
+
+        # Loss Components
+        loss_real   = self.discrimination_loss(Y_real,   valid)
+        loss_fake   = self.discrimination_loss(Y_fake,   fake)
+        loss_fake_e = self.discrimination_loss(Y_fake_e, fake)
+
+        return w1*loss_real + w2*loss_fake + w3*loss_fake_e
+    '''
 
     def G_loss(self, X: torch.Tensor, Z: torch.Tensor,
                 w1:float=0.10, w2:float=0.45, w3:float=0.10, w4:float=0.35, w5:float=0.20
@@ -442,7 +475,9 @@ class TimeGAN(pl.LightningModule):
             # 2. Recovery
         X_tilde = self.Rec(H)
 
-        return self.reconstruction_loss(X, X_tilde)*scaling_factor
+        R_loss = self.reconstruction_loss(X, X_tilde)*scaling_factor
+
+        return R_loss
 
 
     def N_loss(self, Z: torch.Tensor, scaling_factor: float=1
