@@ -5,13 +5,11 @@ from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning import Trainer
 import wandb
 from hyperparameters import Config
-
 import torch
 
 from data_generation import iid_sequence_generator, sine_process, wiener_process
 from dataset_handling import train_test_split
 from numpy import loadtxt, float32
-
 import dataset_handling as dh
 import utilities as ut
 
@@ -102,7 +100,8 @@ def train(datasets_folder="./datasets/"):
 
     trainer = Trainer(logger=wandb_logger,
                     max_epochs=hparams.n_epochs,
-                    val_check_interval=1.0
+                    val_check_interval=1.0,
+                    callbacks=[early_stop]
                     )
 
     # Start the training
@@ -153,11 +152,26 @@ def validate_model(model:TimeGAN, datasets_folder:str="./datasets/", limit:int=1
         else:
             break
 
-    
+
+import numpy as np
+import random
+import pytorch_lightning as pl
+def set_seed(seed=0) -> None:
+    np.random.seed(seed)
+    random.seed(seed)
+
+    torch.cuda.manual_seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.benchmark = False
+
+    _ = pl.seed_everything(seed)
 
 
-### Testing Area
+
+# # # # # # # # 
+# Testing Area #
+ # # # # # # # #
 datasets_folder = "./datasets/"
-#generate_data(datasets_folder)
+generate_data(datasets_folder)
+set_seed(seed=0)
 train(datasets_folder)
-

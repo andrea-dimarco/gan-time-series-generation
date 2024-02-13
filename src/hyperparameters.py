@@ -8,21 +8,20 @@ from dataclasses import dataclass
 class Config:
 
     ## System parameters
-    operating_system:str = 'windows' # . . . Will affect the testing results
+    operating_system:str = 'windows' # . Will affect the testing results
     dataset_folder:str = "../datasets/"# Path to the datasets folder 
 
     ## Training parameters
-    n_epochs: int = 10**2 #. . . . . . . Number of epochs of training
+    n_epochs: int = 20**2 #. . . . . . . Number of epochs of training
     early_stop_patience: int = 100 # . . Amount of epochs to wait for improvement
     decay_epoch: int = 0 # . . . . . . . Epoch from which to start lr decay
 
-    batch_size: int = 128 # . . . . . . Amount of samples in each batch
-    lr: float = 0.01 #. . . . . . . . . adam: learning rate
-    b1: float = 0.40 #. . . . . . . . . adam: decay of first order momentum of gradient
-    b2: float = 0.90 #. . . . . . . . . adam: decay of first order momentum of gradient
-
-    decay_start: float = 1.0 #. . . . . Starting decay factor for the schedulers
-    decay_end: float   = 0.1 #. . . . . Ending decay factor for the scheduler
+    batch_size: int = 64 # . . . . . . . Amount of samples in each batch
+    lr: float = 0.05 # . . . . . . . . . adam: learning rate
+    b1: float = 0.75 # . . . . . . . . . adam: decay of first order momentum of gradient
+    b2: float = 0.95 # . . . . . . . . . adam: decay of second order momentum of gradient
+    decay_start: float = 0.1 # . . . . . Starting decay factor for the schedulers
+    decay_end: float   = 1.0 # . . . . . Ending decay factor for the scheduler
 
     log_images: int =  1 # . . . . . . . Number of images to log at every validation epoch
 
@@ -43,19 +42,19 @@ class Config:
     train_test_split: float = 0.7 #. . . Split between training and testing samples
     train_val_split: float  = 0.8 #. . . Split between training and validating samples
     num_samples: int = 10**5 # . . . . . Number of samples to generate (if any)
-    data_dim: int =  5 # . . . . . . . . Dimension of one generated sample (if any)
+    data_dim: int =  3 # . . . . . . . . Dimension of one generated sample (if any)
     seq_len: int  = 50 # . . . . . . . . Length of the input sequences
 
 
     ## Network parameters
-    latent_space_dim: int = 3 #. . . . . Dimension of the latent space sample
-    noise_dim: int = 2 # . . . . . . . . Dimension of the noise to feed the generator
+    latent_space_dim: int = 2 #. . . . . Dimension of the latent space sample
+    noise_dim: int = 1 # . . . . . . . . Dimension of the noise to feed the generator
 
-    emb_hidden_dim: int = 10 #. . . . . . Dimension of the hidden layers for the embedder
-    gen_hidden_dim: int = 10 #. . . . . . Dimension of the hidden layers for the generator
-    rec_hidden_dim: int = 10 #. . . . . . Dimension of the hidden layers for the recovery
-    dis_hidden_dim: int = 10 #. . . . . . Dimension of the hidden layers for the discriminator
-    sup_hidden_dim: int = 10 #. . . . . . Dimension of the hidden layers for the supervisor
+    emb_hidden_dim: int = 4 #. . . . . . Dimension of the hidden layers for the embedder
+    gen_hidden_dim: int = 4 #. . . . . . Dimension of the hidden layers for the generator
+    rec_hidden_dim: int = 4 #. . . . . . Dimension of the hidden layers for the recovery
+    dis_hidden_dim: int = 4 #. . . . . . Dimension of the hidden layers for the discriminator
+    sup_hidden_dim: int = 4 #. . . . . . Dimension of the hidden layers for the supervisor
 
     gen_num_layers: int = 1 #. . . . . . Number of layers for the generator
     dis_num_layers: int = 1 #. . . . . . Number of layers for the discriminator
