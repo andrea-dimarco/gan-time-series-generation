@@ -43,7 +43,7 @@ class Config:
     train_val_split: float  = 0.8 #. . . Split between training and validating samples
     num_samples: int = 10**5 # . . . . . Number of samples to generate (if any)
     data_dim: int =  2 # . . . . . . . . Dimension of one generated sample (if any)
-    seq_len: int  = 50 # . . . . . . . . Length of the input sequences
+    seq_len: int  = 100# . . . . . . . . Length of the input sequences
 
 
     ## Network parameters

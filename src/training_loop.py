@@ -176,9 +176,3 @@ generate_data(datasets_folder)
 set_seed(seed=0)
 train(datasets_folder)
 
-
-# # # # # # # # 
-# Testing Area #
- # # # # # # # #
-import testing_loop as T
-

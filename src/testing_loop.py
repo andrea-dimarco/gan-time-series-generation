@@ -315,7 +315,10 @@ def generate_stream_test(model:TimeGAN, test_dataset:dh.RealDataset,
                             img_name="synth")
 
 
-## RUN TESTS
+
+# # # # # # # # 
+# Testing Area #
+ # # # # # # # #
 # Instantiate the model
 timegan = TimeGAN(hparams=hparams,
                     train_file_path=train_dataset_path,
@@ -336,7 +339,7 @@ test_dataset = dh.RealDataset(
 limit = hparams.limit
 frequency = 20
 if True:
-    '''
+    
     avg_rec_loss = recovery_test(model=timegan,
                                  test_dataset=test_dataset,
                                  limit=limit,
@@ -353,7 +356,7 @@ if True:
                                        test_dataset=test_dataset,
                                        limit=limit
                                        )
-    '''
+
     generate_stream_test(model=timegan,
                                test_dataset=test_dataset,
                                limit=limit,
