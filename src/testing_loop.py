@@ -322,7 +322,9 @@ def distribution_visualization(model:TimeGAN, test_dataset:dh.RealDataset,
     with torch.no_grad():
         horizon = limit if limit>0 else test_dataset.n_samples
         timegan.eval()
-        synth = model(test_dataset.get_whole_noise_stream()[:horizon]
+        # TODO: revert this
+        #synth = model(test_dataset.get_whole_stream()[:horizon]
+        synth = model.cycle(test_dataset.get_whole_stream()[:horizon]
                         ).reshape(horizon, test_dataset.p)
         original = test_dataset.get_whole_stream()[:horizon]
         print("Synthetic stream has been generated.")
@@ -368,7 +370,7 @@ test_dataset = dh.RealDataset(
 limit = hparams.limit
 frequency = hparams.pic_frequency
 if True:
-    
+
     avg_rec_loss = recovery_seq_test(model=timegan,
                                  test_dataset=test_dataset,
                                  limit=limit,
@@ -389,7 +391,7 @@ if True:
                         show_plot=True,
                         compare=False
                         )
-
+    
     distribution_visualization(model=timegan,
                                test_dataset=test_dataset,
                                limit=limit,

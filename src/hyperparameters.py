@@ -73,8 +73,8 @@ class Config:
     ## Testing phase
     alpha: float = 0.1 # . . . . . . . . Parameter for the Anomaly Detector
     h: float = 10 #. . . . . . . . . . . Parameter for the Anomaly Detector
-    limit:int = 0 # . . . . . . . . . Amount of elements to consider when running tests
-    pic_frequency:int = 1000 # . . . . . . How many steps to wait before saving a new picture during testing
+    limit:int = 2000 # . . . . . . . . . Amount of elements to consider when running tests
+    pic_frequency:int = 100 #. . . . . . How many steps to wait before saving a new picture during testing
 
     forecaster_epochs:int = 10**2 #. . . Amount of epochs to train the forecaster model
     forecaster_hidden:int = 30 # . . . . Hidden dimension for the forecaster
