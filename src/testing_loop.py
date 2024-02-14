@@ -120,7 +120,7 @@ def AD_tests(model:TimeGAN, test_dataset:dh.RealDataset
         print("The PCA-based Anomaly Detector related tests are not currently supported for this operating system.")
 
 
-def recovery_test(model:TimeGAN, test_dataset:dh.RealDataset,
+def recovery_seq_test(model:TimeGAN, test_dataset:dh.RealDataset,
                   limit:int=0, frequency:int=10,
                   save_pictures:bool=True, folder_path:str="./test_results/recovery_tests/"
                   ) -> float:
@@ -138,33 +138,36 @@ def recovery_test(model:TimeGAN, test_dataset:dh.RealDataset,
     Returns:
         - average loss found
     '''
-    horizon = limit if limit>0 else len(test_dataset)
+    horizon = min(limit, len(test_dataset)) if limit>0 else len(test_dataset)
+    small_seq = min(limit, test_dataset.seq_len) if limit>0 else test_dataset.seq_len
     pic_id = 0
     loss = 0
     test_name = "recovery"
+    print(f"Test type:{test_name} has started.")
     for idx, (X, Z) in enumerate(test_dataset):
         if idx >= horizon:
             break
         # embedd & reconstruct the sequence
         with torch.no_grad():
-            X_seq = X.reshape(1, hparams.seq_len, hparams.data_dim)
-            X_rec = model.cycle(X_seq).reshape(hparams.seq_len, hparams.data_dim)
+            X_seq = X.reshape(1, hparams.seq_len, hparams.data_dim)[:,:small_seq]
+            X_rec = model.cycle(X_seq).reshape(small_seq, hparams.data_dim)
             loss += model.R_loss(X_seq).item()
 
         # save a picture every frequency steps
         if (idx % frequency) == 0 and save_pictures:
-            ut.compare_sequences(real=X, fake=X_rec,
+            ut.compare_sequences(real=X[:small_seq], fake=X_rec,
                                 save_img=True, show_graph=False,
                                 img_idx=pic_id, img_name=test_name,
                                 real_label="Real", fake_label="Reconstructed",
                                 folder_path=folder_path)
             pic_id += 1
+            print(f" Saved picture {pic_id}/{int(horizon/frequency)}.")
     loss /= len(test_dataset)
     print(f"Avg {test_name} loss: {loss}")
     return loss
 
 
-def generation_seq_test(model:TimeGAN, test_dataset:dh.RealDataset,
+def generate_seq_test(model:TimeGAN, test_dataset:dh.RealDataset,
                     limit:int=0, frequency:int=10,
                     save_pictures:bool=True, folder_path:str="./test_results/generation_tests/"
                     ) -> float:
@@ -182,30 +185,33 @@ def generation_seq_test(model:TimeGAN, test_dataset:dh.RealDataset,
     Returns:
         - average loss found
     '''
-    horizon = limit if limit>0 else len(test_dataset)
+    horizon = min(limit, len(test_dataset)) if limit>0 else len(test_dataset)
+    small_seq = min(limit, test_dataset.seq_len) if limit>0 else test_dataset.seq_len
     pic_id = 0
     loss = 0
     test_name = "generation"
+    print(f"Test type: {test_name} has started.")
     for idx, (X, Z) in enumerate(test_dataset):
         if idx >= horizon:
             break
         with torch.no_grad():
             # Get the synthetic sequence
-            Z_seq = Z.reshape(1, hparams.seq_len, hparams.noise_dim)
-            X_seq = X.reshape(1, hparams.seq_len, hparams.data_dim)
-            X_hat = model(Z_seq).reshape(hparams.seq_len, hparams.data_dim)
+            Z_seq = Z.reshape(1, hparams.seq_len, hparams.noise_dim)[:,:small_seq]
+            X_seq = X.reshape(1, hparams.seq_len, hparams.data_dim)[:,:small_seq]
+            X_hat = model(Z_seq).reshape(small_seq, hparams.data_dim)
 
         loss += model.G_loss(X_seq, Z_seq).item()
 
         # save a picture every frequency steps
         if (idx % frequency) == 0 and save_pictures:
-            ut.compare_sequences(real=X, fake=X_hat,
+            ut.compare_sequences(real=X[:small_seq], fake=X_hat,
                                 save_img=True, show_graph=False,
                                 img_idx=pic_id, img_name=test_name,
                                 real_label="Real", fake_label="Synthetic",
                                 folder_path=folder_path)
             pic_id += 1
-    loss /= len(test_dataset)
+            print(f" Saved picture {pic_id}/{int(horizon/frequency)}.")
+    loss /= horizon
     print(f"Avg {test_name} loss: {loss}")
     return loss
 
@@ -306,6 +312,30 @@ def generate_stream_test(model:TimeGAN, test_dataset:dh.RealDataset,
         print("Plot done.")
 
 
+def distribution_visualization(model:TimeGAN, test_dataset:dh.RealDataset,
+                                    limit:int=0, save_pic:bool=False,
+                                    show_plot:bool=True, folder_path:str="./test_results"
+) -> None:
+    '''
+    Generates a synthetic sequence and plots it against the real one.
+    '''
+    with torch.no_grad():
+        horizon = limit if limit>0 else test_dataset.n_samples
+        timegan.eval()
+        synth = model(test_dataset.get_whole_noise_stream()[:horizon]
+                        ).reshape(horizon, test_dataset.p)
+        original = test_dataset.get_whole_stream()[:horizon]
+        print("Synthetic stream has been generated.")
+        
+        ut.PCA_visualization(ori_data=original,
+                             generated_data=synth,
+                             show_plot=show_plot,
+                             folder_path=folder_path,
+                             save_plot=save_pic
+                             )
+        print("Distribution visualization done.")
+
+
 
 # # # # # # # # 
 # Testing Area #
@@ -336,26 +366,30 @@ test_dataset = dh.RealDataset(
 
 ## TESTING LOOP
 limit = hparams.limit
-frequency = 20
+frequency = hparams.pic_frequency
 if True:
-    avg_rec_loss = recovery_test(model=timegan,
+    
+    avg_rec_loss = recovery_seq_test(model=timegan,
                                  test_dataset=test_dataset,
                                  limit=limit,
                                  frequency=frequency
                                  )
 
-    avg_gen_loss = generation_seq_test(model=timegan,
+    avg_gen_loss = generate_seq_test(model=timegan,
                                    test_dataset=test_dataset,
                                    limit=limit,
                                    frequency=frequency
                                    )
-
-    avg_dis_acc  = discriminative_seq_test(model=timegan,
-                                       test_dataset=test_dataset,
-                                       limit=limit
-                                       )
     
     generate_stream_test(model=timegan,
+                        test_dataset=test_dataset,
+                        limit=limit,
+                        folder_path="./test_results/",
+                        save_pic=True,
+                        show_plot=True
+                        )
+
+    distribution_visualization(model=timegan,
                                test_dataset=test_dataset,
                                limit=limit,
                                folder_path="./test_results/",
@@ -363,7 +397,6 @@ if True:
                                show_plot=True
                                )
     
-else:
     avg_pred_loss = predictive_test(model=timegan,
                                     test_dataset=test_dataset,
                                     limit=limit,

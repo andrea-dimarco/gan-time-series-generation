@@ -50,8 +50,10 @@ class RealDataset(Dataset):
         
         # Generate noise
         self.noise_dim = Config().noise_dim
+        noise = wiener_process.multi_dim_wiener_process(p=self.noise_dim, N=self.n_samples)
+        scaler.fit(noise)
         self.z = torch.from_numpy(
-            wiener_process.multi_dim_wiener_process(p=self.noise_dim, N=self.n_samples)
+            scaler.transform(noise)
             .reshape(-1, self.seq_len, self.noise_dim)
             ).type(torch.float32)
 

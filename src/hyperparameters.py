@@ -12,8 +12,8 @@ class Config:
     dataset_folder:str = "../datasets/"# Path to the datasets folder 
 
     ## Training parameters
-    n_epochs: int = 10**1 #. . . . . . . Number of epochs of training
-    early_stop_patience: int = 500 # . . Amount of epochs to wait for improvement
+    n_epochs: int = 98**1 #. . . . . . . Number of epochs of training
+    early_stop_patience: int = 25 #. . . Amount of epochs to wait for improvement
     decay_epoch: int = 0 # . . . . . . . Epoch from which to start lr decay
 
     batch_size: int = 128# . . . . . . . Amount of samples in each batch
@@ -57,13 +57,13 @@ class Config:
     sup_hidden_dim: int = 20 # . . . . . Dimension of the hidden layers for the supervisor
 
     gen_num_layers: int = 1 #. . . . . . Number of layers for the generator
-    dis_num_layers: int = 2 #. . . . . . Number of layers for the discriminator
+    dis_num_layers: int = 1 #. . . . . . Number of layers for the discriminator
     emb_num_layers: int = 1 #. . . . . . Number of layers for the embedder
     rec_num_layers: int = 1 #. . . . . . Number of layers for the recovery
     sup_num_layers: int = 1 #. . . . . . Number of layers for the supervisor
 
-    gen_module_type: str = 'gru' # . . . Module type for the generator
-    dis_module_type: str = 'lstm' #. . . Module type for the discriminator
+    gen_module_type: str = 'lstm' # . . . Module type for the generator
+    dis_module_type: str = 'gru' #. . . Module type for the discriminator
     emb_module_type: str = 'lstm' #. . . Module type for the embedder
     rec_module_type: str = 'lstm' #. . . Module type for the recovery
     sup_module_type: str = 'gru' # . . . Module type for the supervisor
@@ -73,4 +73,9 @@ class Config:
     ## Testing phase
     alpha: float = 0.1 # . . . . . . . . Parameter for the Anomaly Detector
     h: float = 10 #. . . . . . . . . . . Parameter for the Anomaly Detector
-    limit:int = 100 #. . . . . . . . . . . Amount of elements to consider when running tests
+    limit:int = 1000 # . . . . . . . . . Amount of elements to consider when running tests
+    pic_frequency:int = 100 # . . . . . . How many steps to wait before saving a new picture during testing
+
+    forecaster_epochs:int = 10**2 #. . . Amount of epochs to train the forecaster model
+    forecaster_hidden:int = 30 # . . . . Hidden dimension for the forecaster
+    forecaster_layers:int = 1 #. . . . . Number of layers for the forecaster

@@ -40,7 +40,7 @@ def multi_dim_wiener_process(p:int=100, N:int=1000, corr=None):
     '''
     brownian_motions = np.zeros((N,p))
     for i in range(p):
-        brownian_motions[:,i] += weiner_process(N)
+        brownian_motions[:,i] += weiner_process(N=N)
 
     if corr is not None:
         assert(corr.shape[0] == corr.shape[1]), "The provided correlation matrix has mismatching shapes."

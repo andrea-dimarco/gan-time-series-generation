@@ -167,7 +167,7 @@ class LambdaLR():
         )
 
 
-def distribution_visualization(ori_data:torch.Tensor, generated_data:torch.Tensor, 
+def PCA_visualization(ori_data:torch.Tensor, generated_data:torch.Tensor, 
                                show_plot:bool=False, save_plot:bool=True,
                                folder_path:str="./"
                                ) -> None:
@@ -186,8 +186,7 @@ def distribution_visualization(ori_data:torch.Tensor, generated_data:torch.Tenso
     """  
     if show_plot or save_plot:
         # Data preprocessing
-        n_sequences, seq_len, data_dim = ori_data.size()  
-        N = n_sequences * seq_len
+        N, data_dim = ori_data.size()  
         p = data_dim
 
         prep_data = ori_data.reshape(N,p).numpy()
@@ -210,9 +209,9 @@ def distribution_visualization(ori_data:torch.Tensor, generated_data:torch.Tenso
                     c=blue, alpha = 0.2, label = "Synthetic")
 
         ax.legend()  
-        plt.title('PCA plot')
+        plt.title('Distribution comparison')
+        if save_plot:
+            plt.savefig(f"{folder_path}pca-visual.png")
         if show_plot:
             plt.show()
-        if save_plot:
-            plt.savefig(f"{folder_path}pca-plot.png")
         plt.clf()
