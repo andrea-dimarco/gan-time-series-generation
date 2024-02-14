@@ -147,7 +147,6 @@ def validate_model(model:TimeGAN, datasets_folder:str="./datasets/", limit:int=1
             X_tilde = model.cycle(X_seq).cpu().detach().reshape(hparams.seq_len, hparams.data_dim)
             # save result
             ut.compare_sequences(real=X, fake=X_tilde, save_img=True, img_idx=idx, show_graph=False)
-
         else:
             break
 

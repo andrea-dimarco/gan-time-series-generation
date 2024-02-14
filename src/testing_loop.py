@@ -359,7 +359,7 @@ print(f"TimeGAN model loaded and ready for testing.")
 
 # Load the dataset
 test_dataset = dh.RealDataset(
-                file_path=test_dataset_path,
+                file_path=train_dataset_path,
                 seq_len=hparams.seq_len
                 )
 
@@ -386,7 +386,8 @@ if True:
                         limit=limit,
                         folder_path="./test_results/",
                         save_pic=True,
-                        show_plot=True
+                        show_plot=True,
+                        compare=False
                         )
 
     distribution_visualization(model=timegan,

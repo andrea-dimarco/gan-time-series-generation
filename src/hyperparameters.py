@@ -12,8 +12,8 @@ class Config:
     dataset_folder:str = "../datasets/"# Path to the datasets folder 
 
     ## Training parameters
-    n_epochs: int = 98**1 #. . . . . . . Number of epochs of training
-    early_stop_patience: int = 25 #. . . Amount of epochs to wait for improvement
+    n_epochs: int = 99**1 #. . . . . . . Number of epochs of training
+    early_stop_patience: int = 100#. . . Amount of epochs to wait for improvement
     decay_epoch: int = 0 # . . . . . . . Epoch from which to start lr decay
 
     batch_size: int = 128# . . . . . . . Amount of samples in each batch
@@ -73,8 +73,8 @@ class Config:
     ## Testing phase
     alpha: float = 0.1 # . . . . . . . . Parameter for the Anomaly Detector
     h: float = 10 #. . . . . . . . . . . Parameter for the Anomaly Detector
-    limit:int = 1000 # . . . . . . . . . Amount of elements to consider when running tests
-    pic_frequency:int = 100 # . . . . . . How many steps to wait before saving a new picture during testing
+    limit:int = 0 # . . . . . . . . . Amount of elements to consider when running tests
+    pic_frequency:int = 1000 # . . . . . . How many steps to wait before saving a new picture during testing
 
     forecaster_epochs:int = 10**2 #. . . Amount of epochs to train the forecaster model
     forecaster_hidden:int = 30 # . . . . Hidden dimension for the forecaster

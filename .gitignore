@@ -3,11 +3,11 @@ Papers/*
 codebase/*
 timegan-backup/*
 *.csv
-*.png
 wandb/offline-run-*
 wandb/*
 *(2024)
-*.pth
+*checkpoint.pth
+*beta.pth
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
