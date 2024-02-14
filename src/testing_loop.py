@@ -284,10 +284,9 @@ def generate_stream_test(model:TimeGAN, test_dataset:dh.RealDataset,
         horizon = limit if limit>0 else test_dataset.n_samples
         timegan.eval()
         synth = model(test_dataset.get_whole_noise_stream()[:horizon]
-                        ).reshape(test_dataset.n_samples, test_dataset.p)
+                        ).reshape(horizon, test_dataset.p)
         print("Synthetic stream has been generated.")
         if compare:
-            print("Comparison plot ready.")
             ut.compare_sequences(real=test_dataset.get_whole_stream()[:horizon],
                                 fake=synth,
                                 real_label="Original data",
@@ -302,7 +301,9 @@ def generate_stream_test(model:TimeGAN, test_dataset:dh.RealDataset,
                             save_picture=save_pic,
                             show_plot=show_plot,
                             folder_path=folder_path,
-                            img_name="synth")
+                            img_name="synth"
+                            )
+        print("Plot done.")
 
 
 
@@ -337,7 +338,6 @@ test_dataset = dh.RealDataset(
 limit = hparams.limit
 frequency = 20
 if True:
-    '''
     avg_rec_loss = recovery_test(model=timegan,
                                  test_dataset=test_dataset,
                                  limit=limit,
@@ -354,7 +354,7 @@ if True:
                                        test_dataset=test_dataset,
                                        limit=limit
                                        )
-    '''
+    
     generate_stream_test(model=timegan,
                                test_dataset=test_dataset,
                                limit=limit,

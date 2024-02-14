@@ -40,7 +40,7 @@ class RealDataset(Dataset):
         self.n_seq: int = int(self.n_samples / seq_len)
         self.transform: Optional[Callable] = transform
 
-        # transform data
+        # Transform data
         scaler = MinMaxScaler(feature_range=(-1,1)) # preserves the data distribution
         scaler.fit(xy)
         self.x = torch.from_numpy(
@@ -48,10 +48,10 @@ class RealDataset(Dataset):
             .reshape(-1, self.seq_len, self.p)
             ).type(torch.float32)
         
-        # generate noise
+        # Generate noise
         self.noise_dim = Config().noise_dim
         self.z = torch.from_numpy(
-            iid_sequence_generator.get_iid_sequence(p=self.noise_dim, N=self.n_samples)
+            wiener_process.multi_dim_wiener_process(p=self.noise_dim, N=self.n_samples)
             .reshape(-1, self.seq_len, self.noise_dim)
             ).type(torch.float32)
 

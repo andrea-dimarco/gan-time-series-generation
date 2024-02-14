@@ -12,8 +12,8 @@ class Config:
     dataset_folder:str = "../datasets/"# Path to the datasets folder 
 
     ## Training parameters
-    n_epochs: int = 10**3 #. . . . . . . Number of epochs of training
-    early_stop_patience: int =  50 # . . Amount of epochs to wait for improvement
+    n_epochs: int = 10**1 #. . . . . . . Number of epochs of training
+    early_stop_patience: int = 500 # . . Amount of epochs to wait for improvement
     decay_epoch: int = 0 # . . . . . . . Epoch from which to start lr decay
 
     batch_size: int = 128# . . . . . . . Amount of samples in each batch
@@ -57,7 +57,7 @@ class Config:
     sup_hidden_dim: int = 20 # . . . . . Dimension of the hidden layers for the supervisor
 
     gen_num_layers: int = 1 #. . . . . . Number of layers for the generator
-    dis_num_layers: int = 1 #. . . . . . Number of layers for the discriminator
+    dis_num_layers: int = 2 #. . . . . . Number of layers for the discriminator
     emb_num_layers: int = 1 #. . . . . . Number of layers for the embedder
     rec_num_layers: int = 1 #. . . . . . Number of layers for the recovery
     sup_num_layers: int = 1 #. . . . . . Number of layers for the supervisor
