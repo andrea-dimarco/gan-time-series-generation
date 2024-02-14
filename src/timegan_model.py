@@ -323,7 +323,7 @@ class TimeGAN(pl.LightningModule):
 
     
     def DD_loss(self, X: torch.Tensor, Z: torch.Tensor,
-               w1:float=0.40, w2:float=0.20, w3:float=0.40
+               w1:float=0.45, w2:float=0.10, w3:float=0.45
     ) -> torch.Tensor:
         # Compute model outputs
             # 1. Embedder
@@ -352,7 +352,7 @@ class TimeGAN(pl.LightningModule):
     
 
     def G_loss(self, X: torch.Tensor, Z: torch.Tensor,
-                w1:float=0.05, w2:float=0.30, w3:float=0.10, w4:float=0.30, w5:float=0.15, w6:float=0.10
+                w1:float=0.10, w2:float=0.20, w3:float=0.10, w4:float=0.30, w5:float=0.10, w6:float=0.20
     ) -> torch.Tensor:
         '''
         This function computes the loss for the GENERATOR module.
@@ -466,7 +466,8 @@ class TimeGAN(pl.LightningModule):
         return w1*R_loss #+ w2*S_loss
     
 
-    def R_loss(self, X: torch.Tensor, scaling_factor: float=1
+    def R_loss(self, X: torch.Tensor,
+               w1:float=0.80, w2:float=0.20 
     ) -> torch.Tensor:
         '''
         This function computes the loss for the RECOVERY module.
@@ -482,10 +483,17 @@ class TimeGAN(pl.LightningModule):
         H = self.Emb(X)
             # 2. Recovery
         X_tilde = self.Rec(H)
+            # 3. Discriminator
+        Y_rec  = self.DataDis(X_tilde)
 
-        R_loss = self.reconstruction_loss(X, X_tilde)*scaling_factor
+        # Adversarial truths
+        valid = torch.ones_like(Y_rec)
 
-        return R_loss
+        # Losses
+        DD_loss = self.discrimination_loss(Y_rec, valid)
+        R_loss  = self.reconstruction_loss(X, X_tilde)
+
+        return w1*R_loss + w2*DD_loss
 
     
     def N_loss(self, Z: torch.Tensor, scaling_factor: float=1
