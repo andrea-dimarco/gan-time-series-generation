@@ -328,8 +328,8 @@ def predictive_test(model:TimeGAN, test_dataset_path:str,
         dataset = dh.ForecastingDataset(file_path=test_dataset_path,seq_len=hparams.forecaster_seq_len)
         print("Loaded real testing dataset.")
         synth_plot = np.ones_like(dataset.get_whole_stream()) * np.nan
-        y_pred = forecaster(dataset.get_all_sequences())[hparams.seq_len:]
-        synth_plot[hparams.seq_len:dataset.n_samples] = y_pred
+        y_pred = forecaster(dataset.get_all_sequences())[hparams.forecaster_seq_len:]
+        synth_plot[hparams.forecaster_seq_len:dataset.n_samples] = y_pred
         print("Predictions done.")
 
         # only plot the first dimension

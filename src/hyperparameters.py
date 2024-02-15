@@ -76,7 +76,7 @@ class Config:
     limit:int = 1000 # . . . . . . . . . Amount of elements to consider when running tests
     pic_frequency:int = 100 #. . . . . . How many steps to wait before saving a new picture during testing
 
-    forecaster_epochs:int = 10**1 #. . . Amount of epochs to train the forecaster model
+    forecaster_epochs:int = 10**2 #. . . Amount of epochs to train the forecaster model
     forecaster_hidden:int = 50 # . . . . Hidden dimension for the forecaster
     forecaster_layers:int = 1 #. . . . . Number of layers for the forecaster
     forecaster_seq_len:int = 100 # . . . Lookback window for the forecaster
