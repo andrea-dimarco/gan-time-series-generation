@@ -381,7 +381,7 @@ timegan = TimeGAN(hparams=hparams,
                     train_file_path=train_dataset_path,
                     val_file_path=test_dataset_path
                     )
-timegan.load_state_dict(torch.load(f"./timegan-{hparams.dataset_name}.pth"))
+timegan.load_state_dict(torch.load(f"./models/timegan-{hparams.dataset_name}.pth"))
 
 timegan.eval()
 print(f"TimeGAN {hparams.dataset_name} model loaded and ready for testing.")
