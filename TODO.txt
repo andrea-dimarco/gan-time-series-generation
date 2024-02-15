@@ -1,28 +1,12 @@
 TO DO:
-- study TimeGAN code
-    - visualization_metrics
-    - predictive_metrics
+- Make test case
+    - predictive_test(...)
 
 - review Weights & Biases -> [here](https://www.youtube.com/playlist?list=PLD80i8An1OEGajeVo15ohAQYF1Ttle0lk)
-- make cool plots for the model
-- setup learning rate schedulers
+
 - train the model
-
-- tests
-    - test the synthetic samples against the PCA anomaly detector
-    - test the reconstructed samples against the PCA anomaly detector
-    - test the discriminator accuracy
-
-- modifications
-    - add a second discriminator on the reconstructed samples 
-
-- uninstall
-    - wandb
-    - pytorch-lightning
-    - pyyaml
-    - torchvision
-    - plotly
-    - tensorflow
+    - fix S_loss
+    - fix G_loss
 
 - write Report
     - 1) Introduction: section where the problem is presented, and the overall proposed approach is briefly described

@@ -1,7 +1,8 @@
 
 
 # Libraries
-from typing import Sequence, List, Dict, Tuple, Union, Mapping
+from typing import Sequence, Dict, Tuple, Union, Mapping
+
 
 from dataclasses import asdict
 from pathlib import Path
@@ -17,12 +18,9 @@ import pytorch_lightning as pl
 # My modules
 import dataset_handling as dh
 import utilities as ut
-from hyperparamets import Config
-from modules.discriminator import Discriminator
-from modules.embedder import Embedder
-from modules.generator import Generator
-from modules.recovery import Recovery
-from modules.supervisor import Supervisor
+from hyperparameters import Config
+from modules.classifier_cell import ClassCell
+from modules.regressor_cell import RegCell
 
 '''
 This is the main model.
@@ -32,8 +30,7 @@ class TimeGAN(pl.LightningModule):
     def __init__(self,
         hparams: Union[Dict, Config],
         train_file_path: Path,
-        val_file_path: Path,
-        plot_losses: bool=False
+        val_file_path: Path
     ) -> None:
         '''
         The TimeGAN model.
@@ -42,72 +39,75 @@ class TimeGAN(pl.LightningModule):
             - `hparams`: dictionary that contains all the hyperparameters
             - `train_file_path`: Path to the folder that contains the training stream
             - `val_file_path`: Path to the file that contains the testing stream
-            - `plot_losses`: Saves the losses in the `loss_history` and `val_loss_history`
+            - `plot_losses`: Saves the losses in the `loss_history`
         '''
         super().__init__()
         self.save_hyperparameters(asdict(hparams) if not isinstance(hparams, Mapping) else hparams)
 
         # Dataset paths
         self.train_file_path = train_file_path
-        self.val_file_path  = val_file_path
+        self.val_file_path   = val_file_path
 
         # loss criteria
         self.discrimination_loss = torch.nn.BCELoss()
-        self.reconstruction_loss = torch.nn.MSELoss()
-
-        # Expected shapes 
-        self.data_dim = self.hparams["data_dim"]
-        self.latent_space_dim = self.hparams["latent_space_dim"]
-        self.noise_dim = self.hparams["noise_dim"]
-        self.seq_len = self.hparams["seq_len"]
-
-        if plot_losses:
-            self.plot_losses = True
-            self.loss_history = []
-            self.val_loss_history = []
-        else:
-            self.plot_losses = False
-            self.loss_history = None
-            self.val_loss_history = None
+        self.reconstruction_loss = torch.nn.L1Loss()
 
         # Initialize Modules
-        self.Gen = Generator(input_size=self.noise_dim,
-                            hidden_size=self.hparams["gen_hidden_dim"],
-                            output_size=self.latent_space_dim,
-                            num_layers=self.hparams["gen_num_layers"],
-                            module_type=self.hparams["gen_module_type"]
-                            )
-        self.Emb = Embedder(input_size=self.data_dim,
-                            hidden_size=self.hparams["emb_hidden_dim"],
-                            output_size=self.latent_space_dim,
-                            num_layers=self.hparams["emb_num_layers"],
-                            module_type=self.hparams["emb_module_type"]
-                            )
-        self.Rec = Recovery(input_size=self.latent_space_dim,
-                            hidden_size=self.hparams["rec_hidden_dim"],
-                            output_size=self.data_dim,
-                            num_layers=self.hparams["rec_num_layers"],
-                            module_type=self.hparams["rec_module_type"]
-                            )
-        self.Sup = Supervisor(input_size=self.latent_space_dim,
-                              num_layers=self.hparams["sup_num_layers"],
-                              module_type=self.hparams["sup_module_type"]
-                              )
-        self.Dis = Discriminator(input_size=self.latent_space_dim,
-                                 hidden_size=self.hparams["dis_hidden_dim"],
-                                 num_layers=self.hparams["dis_num_layers"],
-                                 module_type=self.hparams["dis_module_type"]
-                                 )
-
-        # Image buffers
-        #TODO: actually use this
-        self.fake_buffer = ut.ReplayBuffer()
+        self.Gen = RegCell(input_size=self.hparams["noise_dim"],
+                           output_size=self.hparams["latent_space_dim"],
+                           hidden_size=self.hparams["gen_hidden_dim"],
+                           num_layers=self.hparams["gen_num_layers"],
+                           module_type=self.hparams["gen_module_type"]
+                           )
+        self.GetNoise = RegCell(input_size=self.hparams["latent_space_dim"],
+                                output_size=self.hparams["noise_dim"],
+                                hidden_size=self.hparams["gen_hidden_dim"],
+                                num_layers=self.hparams["gen_num_layers"],
+                                module_type=self.hparams["gen_module_type"]
+                                )
+        self.Emb = RegCell(input_size=self.hparams["data_dim"],
+                           output_size=self.hparams["latent_space_dim"],
+                           hidden_size=self.hparams["emb_hidden_dim"],
+                           num_layers=self.hparams["emb_num_layers"],
+                           module_type=self.hparams["emb_module_type"]
+                           )
+        self.Rec = RegCell(input_size=self.hparams["latent_space_dim"],
+                           output_size=self.hparams["data_dim"],
+                           hidden_size=self.hparams["rec_hidden_dim"],
+                           num_layers=self.hparams["rec_num_layers"],
+                           module_type=self.hparams["rec_module_type"]
+                           )
+        self.Sup = RegCell(input_size=self.hparams["latent_space_dim"],
+                           output_size=self.hparams["latent_space_dim"],
+                           hidden_size=self.hparams["sup_hidden_dim"],
+                           num_layers=self.hparams["sup_num_layers"],
+                           module_type=self.hparams["sup_module_type"]
+                           )
+        self.Dis = ClassCell(input_size=self.hparams["latent_space_dim"],
+                             num_classes=1,
+                             hidden_size=self.hparams["dis_hidden_dim"],
+                             num_layers=self.hparams["dis_num_layers"],
+                             module_type=self.hparams["dis_module_type"]
+                             )
+        # self.DataDis = ClassCell(input_size=self.hparams["data_dim"],
+        #                          num_classes=1,
+        #                          hidden_size=self.hparams["dis_hidden_dim"],
+        #                          num_layers=self.hparams["dis_num_layers"],
+        #                          module_type=self.hparams["dis_module_type"]
+        #                          )
 
         # Forward pass cache to avoid re-doing some computation
-        self.fake = None
+        #self.fake = None
 
         # It avoids wandb logging when lighting does a sanity check on the validation
         self.is_sanity = True
+
+        # multiple optimizers are no longer supported by LightningModule
+        self.automatic_optimization = False
+
+        # For the end of the validation step
+        self.validation_step_output = []
+        self.img_type:bool = True
 
 
     def forward(self, Z: torch.Tensor) -> torch.Tensor:
@@ -120,17 +120,11 @@ class TimeGAN(pl.LightningModule):
         Returns:
             - the translated image with shape [batch, seq_len, data_dim]
         '''
-
-        assert(Z.size()[2] == self.noise_dim), "Invalid dimention for noise sample"
-
         # Generate a synthetic sequence in the latent space
         E_hat = self.Gen(Z) # generator
 
-        # Tune the sequence (superflous step)
-        H_hat = self.Sup(E_hat) # supervisor
-
         # Recontrust fake data from the synthetic sequence
-        X_hat = self.Rec(H_hat) # recovery
+        X_hat = self.Rec(E_hat) # recovery
 
         return X_hat
 
@@ -145,14 +139,9 @@ class TimeGAN(pl.LightningModule):
         Returns:
             - the translated image with shape [batch, seq_len, data_dim]
         '''
-
-        assert(X.size()[2] == self.data_dim), "Invalid dimention for data sample"
-
         # 1. Embedder
         H = self.Emb(X)
-        # 2. Supervisor
-        #H_hat_supervise = self.Sup(H)
-        # 3. Recovery
+        # 2. Recovery
         X_tilde = self.Rec(H)
 
         return X_tilde
@@ -168,12 +157,11 @@ class TimeGAN(pl.LightningModule):
         train_loader = DataLoader(
             dh.RealDataset(
                 file_path=self.train_file_path,
-                seq_len=self.seq_len
+                seq_len=self.hparams["seq_len"]
             ),
             batch_size=self.hparams["batch_size"],
             shuffle=True,
-            num_workers=self.hparams["n_cpu"],
-            pin_memory=True,
+            pin_memory=True
         )
         return train_loader
         
@@ -191,12 +179,11 @@ class TimeGAN(pl.LightningModule):
         val_loader = DataLoader(
             dh.RealDataset(
                 file_path=self.val_file_path,
-                seq_len=self.seq_len
+                seq_len=self.hparams["seq_len"]
             ),
             batch_size=self.hparams["batch_size"],
-            shuffle=False,
-            num_workers=self.hparams["n_cpu"],
-            pin_memory=True,
+            shuffle=True,
+            pin_memory=True
         )
         return val_loader
 
@@ -229,89 +216,68 @@ class TimeGAN(pl.LightningModule):
         '''
 
         # Optimizers
-        E_optim = torch.optim.Adam(self.Emb.parameters(recurse=True),
-                                  lr=self.hparams["lr"],
-                                  betas=(self.hparams["b1"], self.hparams["b2"]))
-        D_optim = torch.optim.Adam(self.Dis.parameters(recurse=True),
-                                  lr=self.hparams["lr"],
-                                  betas=(self.hparams["b1"], self.hparams["b2"]))
-        G_optim = torch.optim.Adam(self.Gen.parameters(recurse=True),
-                                  lr=self.hparams["lr"],
-                                  betas=(self.hparams["b1"], self.hparams["b2"]))
-        S_optim = torch.optim.Adam(self.Sup.parameters(recurse=True),
-                                  lr=self.hparams["lr"],
-                                  betas=(self.hparams["b1"], self.hparams["b2"]))
-        R_optim = torch.optim.Adam(self.Rec.parameters(recurse=True),
-                                  lr=self.hparams["lr"],
-                                  betas=(self.hparams["b1"], self.hparams["b2"]))
-
-        # linear decay scheduler
-        #assert(self.hparams["n_epochs"] > self.hparams["decay_epoch"]), "Decay must start BEFORE the training ends!"
-        #linear_decay = lambda epoch: float(1.0 - max(0, epoch-self.hparams["decay_epoch"]) / (self.hparams["n_epochs"]-self.hparams["decay_epoch"]))
-        
-
+        E_optim = torch.optim.Adam(
+            self.Emb.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
+        )
+        D_optim = torch.optim.Adam(
+            self.Dis.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
+        )
+        G_optim = torch.optim.Adam(
+            self.Gen.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
+        )
+        S_optim = torch.optim.Adam(
+            self.Sup.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
+        )
+        R_optim = torch.optim.Adam(
+            self.Rec.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
+        )
+        N_optim = torch.optim.Adam(
+            self.GetNoise.parameters(recurse=True), lr=self.hparams["lr"], betas=(self.hparams["b1"], self.hparams["b2"])
+        )
+    
+    
         # Schedulers 
-        # lr_scheduler_E = torch.optim.lr_scheduler.LinearLR(
-        #     E_optim,
-        #     start_factor=1.0,
-        #     end_factor=0.1
-        # )
-        # lr_scheduler_D = torch.optim.lr_scheduler.LinearLR(
-        #     D_optim,
-        #     start_factor=1.0,
-        #     end_factor=0.1
-        # )
-        # lr_scheduler_G = torch.optim.lr_scheduler.LinearLR(
-        #     G_optim,
-        #     start_factor=1.0,
-        #     end_factor=0.1
-        # )
-        # lr_scheduler_S = torch.optim.lr_scheduler.LinearLR(
-        #     S_optim,
-        #     start_factor=1.0,
-        #     end_factor=0.1
-        # )
-        # lr_scheduler_R = torch.optim.lr_scheduler.LinearLR(
-        #     R_optim,
-        #     start_factor=1.0,
-        #     end_factor=0.1
-        # )
-
-        # return (
-        #     [E_optim, D_optim, G_optim, S_optim, R_optim],
-        #     [
-        #         {"scheduler": lr_scheduler_E, "interval": "epoch", "frequency": 1},
-        #         {"scheduler": lr_scheduler_D, "interval": "epoch", "frequency": 1},
-        #         {"scheduler": lr_scheduler_G, "interval": "epoch", "frequency": 1},
-        #         {"scheduler": lr_scheduler_S, "interval": "epoch", "frequency": 1},
-        #         {"scheduler": lr_scheduler_R, "interval": "epoch", "frequency": 1}
-        #     ]
-        # )
-        return E_optim, D_optim, G_optim, S_optim, R_optim
+        lr_scheduler_E = torch.optim.lr_scheduler.LinearLR(
+            E_optim,
+            start_factor=self.hparams["decay_start"],
+            end_factor=self.hparams["decay_end"]
+        )
+        lr_scheduler_D = torch.optim.lr_scheduler.LinearLR(
+            D_optim,
+            start_factor=self.hparams["decay_start"],
+            end_factor=self.hparams["decay_end"]
+        )
+        lr_scheduler_G = torch.optim.lr_scheduler.LinearLR(
+            G_optim,
+            start_factor=self.hparams["decay_start"],
+            end_factor=self.hparams["decay_end"]
+        )
+        lr_scheduler_S = torch.optim.lr_scheduler.LinearLR(
+            S_optim,
+            start_factor=self.hparams["decay_start"],
+            end_factor=self.hparams["decay_end"]
+        )
+        lr_scheduler_R = torch.optim.lr_scheduler.LinearLR(
+            R_optim,
+            start_factor=self.hparams["decay_start"],
+            end_factor=self.hparams["decay_end"]
+        )
+        lr_scheduler_N = torch.optim.lr_scheduler.LinearLR(
+            N_optim,
+            start_factor=self.hparams["decay_start"],
+            end_factor=self.hparams["decay_end"]
+        )
+        #return E_optim, D_optim, G_optim, S_optim, R_optim
+        return ([E_optim, D_optim, G_optim, S_optim, R_optim, N_optim], 
+                [lr_scheduler_E, lr_scheduler_D, lr_scheduler_G, lr_scheduler_S, lr_scheduler_R, lr_scheduler_N])
 
 
-    def get_opt_idx(self, module_name: str
-    ) -> int:
-        '''
-        Given the module name returns the index of the optimizer.
-        The names are:
-
-            - Emb: optimzer for the Embedder
-            - Dis: optimizer for the Discriminator
-            - Gen: optimizer for the Generator      
-            - Sup: optimizer for the Supervisor
-            - Rec: optimizer for the Recovery
-
-        Arguments:
-            - `module_name`: the name of the module
-        '''
-        module_list = ['Emb','Dis','Gen','Sup','Rec']
-        assert(module_name in module_list), "typo!!"
-        return module_list.index(module_name)
-
+    def lr_scheduler_step(self, scheduler, optimizer_idx, metric) -> None:
+        return None
+    
 
     def D_loss(self, X: torch.Tensor, Z: torch.Tensor,
-               w1:float=0.40, w2:float=0.40, w3:float=0.20
+               w1:float=0.40, w2:float=0.20, w3:float=0.40
     ) -> torch.Tensor:
         '''
         This function computes the loss for the DISCRIMINATOR module.
@@ -333,10 +299,13 @@ class TimeGAN(pl.LightningModule):
             # 4. Discriminator
         Y_fake   = self.Dis(H_hat)
         Y_real   = self.Dis(H)
+        Y_real   = self.Dis(H)
         Y_fake_e = self.Dis(E_hat)
 
 
         # Adversarial truths
+        valid = torch.ones_like(Y_real)
+        fake  = torch.zeros_like(Y_fake)
         valid = torch.ones_like(Y_real)
         fake  = torch.zeros_like(Y_fake)
 
@@ -345,12 +314,46 @@ class TimeGAN(pl.LightningModule):
         loss_real   = self.discrimination_loss(Y_real,   valid)
         loss_fake   = self.discrimination_loss(Y_fake,   fake)
         loss_fake_e = self.discrimination_loss(Y_fake_e, fake)
+        loss_real   = self.discrimination_loss(Y_real,   valid)
+        loss_fake   = self.discrimination_loss(Y_fake,   fake)
+        loss_fake_e = self.discrimination_loss(Y_fake_e, fake)
 
         return w1*loss_real + w2*loss_fake + w3*loss_fake_e
 
+    '''
+    def DD_loss(self, X: torch.Tensor, Z: torch.Tensor,
+               w1:float=0.40, w2:float=0.20, w3:float=0.40
+    ) -> torch.Tensor:
+        # Compute model outputs
+            # 1. Embedder
+        H = self.Emb(X)
+            # 2. Generator
+        E_hat = self.Gen(Z) 
+            # 3. Supervisor
+        H_hat = self.Sup(E_hat)
+            # 4. Recovery
+        X_tilde = self.Rec(H)
+        X_hat   = self.Rec(E_hat)
+        X_hat_s = self.Rec(H_hat)
+            # 5. Discriminator
+        Y_real   = self.DataDis(X_tilde)
+        Y_fake   = self.DataDis(X_hat_s)
+        Y_fake_e = self.DataDis(X_hat)
+
+        # Adversarial truths
+        valid = torch.ones_like(Y_real)
+        fake  = torch.zeros_like(Y_fake)
+
+        # Loss Components
+        loss_real   = self.discrimination_loss(Y_real,   valid)
+        loss_fake   = self.discrimination_loss(Y_fake,   fake)
+        loss_fake_e = self.discrimination_loss(Y_fake_e, fake)
+
+        return w1*loss_real + w2*loss_fake + w3*loss_fake_e
+    '''
 
     def G_loss(self, X: torch.Tensor, Z: torch.Tensor,
-                w1:float=0.25, w2:float=0.25, w3:float=0.25, w4:float=0.25
+                w1:float=0.10, w2:float=0.45, w3:float=0.10, w4:float=0.35, w5:float=0.20
     ) -> torch.Tensor:
         '''
         This function computes the loss for the GENERATOR module.
@@ -363,41 +366,41 @@ class TimeGAN(pl.LightningModule):
             - `G_loss`: tensor with one element containing the Generator module's loss
         '''
         # Compute model outputs
-            # 1. Embedder
-        H = self.Emb(X)
-            # 2. Generator
+            # 1. Generator
         E_hat = self.Gen(Z) 
-            # 3. Supervisor
+            # 2. Supervisor
         H_hat = self.Sup(E_hat)
-        H_hat_supervise = self.Sup(H)
-            # 4. Recovery
-        X_hat = self.Rec(H_hat)
-            # 5. Discriminator
+            # 3. Recovery
+        X_hat = self.Rec(E_hat)
+            # 4. Discriminator
         Y_fake   = self.Dis(H_hat)
         Y_fake_e = self.Dis(E_hat)
+            # 5. Revert noise
+        N_hat = self.GetNoise(E_hat)
 
 
         # Loss components
-            # 1. Adversarial truth
         valid = torch.ones_like(Y_fake)
-            # 2. Adversarial
-        GA_loss   = self.discrimination_loss(Y_fake, valid)
+            # 1. Adversarial loss
+        GA_loss   = self.discrimination_loss(Y_fake,   valid)
         GA_loss_e = self.discrimination_loss(Y_fake_e, valid)
-            # 3. Supervised loss
-        S_loss    = self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
-            # 4. Deviation loss
-        G_loss_mu = torch.mean(
+            # 2. Supervised loss
+        S_loss    = self.reconstruction_loss(H_hat[:,1:,:], E_hat[:,:-1,:])
+            # 3. Deviation loss
+        Dev_loss_mu = torch.mean(
+            torch.abs((torch.mean(X_hat, dim=0)) - (torch.mean(X, dim=0))))
+        Dev_loss_std = torch.mean(
             torch.abs(
                 torch.sqrt(torch.var(X_hat, dim=0) + 1e-6) - torch.sqrt(torch.var(X, dim=0) + 1e-6)))
-        G_loss_std = torch.mean(
-            torch.abs((torch.mean(X_hat, dim=0)) - (torch.mean(X, dim=0))))
-        G_loss_V  = G_loss_mu + G_loss_std
+        Dev_loss  = Dev_loss_mu + Dev_loss_std
+            # 4. Reconstruction loss
+        R_loss = self.reconstruction_loss(Z, N_hat)
 
-        return w1*GA_loss + w2*GA_loss_e + w3*torch.sqrt(S_loss) + w4*G_loss_V 
+        return w1*GA_loss + w2*GA_loss_e + w3*S_loss + w4*Dev_loss + w5*R_loss
     
 
     def S_loss(self, X: torch.Tensor, Z: torch.Tensor,
-               w1:float=0.4, w2:float=0.6
+               w1:float=0.4, w2:float=0.6, scaling_factor=1000
     ) -> torch.Tensor:
         '''
         This function computes the loss for the SUPERVISOR module.
@@ -418,10 +421,10 @@ class TimeGAN(pl.LightningModule):
         H_hat = self.Sup(E_hat)
         H_hat_supervise = self.Sup(H)
 
-
         # Loss components
             # 1. Reconstruction Loss
-        Rec_loss = self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
+        Rec_loss = self.reconstruction_loss(H, H_hat_supervise)
+        #Rec_loss = self.reconstruction_loss(H, H_hat_supervise)
             # 2. Deviation Loss
         Dev_loss_mu = torch.mean(
             torch.abs(
@@ -431,7 +434,7 @@ class TimeGAN(pl.LightningModule):
         Dev_loss = Dev_loss_mu + Dev_loss_std
 
         # Supervised loss
-        return w1*Rec_loss + w2*Dev_loss
+        return (w1*Rec_loss + w2*Dev_loss)*scaling_factor
 
 
     def E_loss(self, X: torch.Tensor,
@@ -451,18 +454,18 @@ class TimeGAN(pl.LightningModule):
             # 1. Embedder
         H = self.Emb(X)
             # 2. Supervisor
-        H_hat_supervise = self.Sup(H)
+        #H_hat_supervise = self.Sup(H)
             # 3. Recovery
         X_tilde = self.Rec(H)
 
         # Loss Components
         R_loss = self.reconstruction_loss(X, X_tilde)
-        S_loss = self.reconstruction_loss(H[:,1:,:], H_hat_supervise[:,:-1,:])
+        #S_loss = self.reconstruction_loss(H, H_hat_supervise)
 
-        return w1*torch.sqrt(R_loss) + w2*S_loss
+        return w1*R_loss #+ w2*S_loss
     
 
-    def R_loss(self, X: torch.Tensor
+    def R_loss(self, X: torch.Tensor, scaling_factor: float=10
     ) -> torch.Tensor:
         '''
         This function computes the loss for the RECOVERY module.
@@ -479,12 +482,25 @@ class TimeGAN(pl.LightningModule):
             # 2. Recovery
         X_tilde = self.Rec(H)
 
-        return self.reconstruction_loss(X, X_tilde)
+        R_loss = self.reconstruction_loss(X, X_tilde)*scaling_factor
+
+        return R_loss
 
 
-    def training_step(self,
-                      batch: Tuple[torch.Tensor, torch.Tensor], batch_nb: int, optimizer_idx: int
+    def N_loss(self, Z: torch.Tensor, scaling_factor: float=1
     ) -> torch.Tensor:
+        '''
+        From the generated sequence revert back to the noise
+        '''
+        E_hat = self.Gen(Z)
+        N_hat = self.GetNoise(E_hat)
+
+        return self.reconstruction_loss(Z, N_hat)*scaling_factor
+
+
+    def training_step(self, 
+                      batch: Tuple[torch.Tensor, torch.Tensor], batch_nb: int
+    ) -> Dict[str, torch.Tensor]:
         '''
         Implements a single training step
 
@@ -502,40 +518,60 @@ class TimeGAN(pl.LightningModule):
         '''
         # Process the batch
         X_batch, Z_batch = batch
+        E_optim, D_optim, G_optim, S_optim, R_optim, N_optim = self.optimizers()
 
-        if optimizer_idx == 1:
-            # Discriminator Loss
-            loss = self.D_loss(X=X_batch, Z=Z_batch)
-            loss_name = "D_loss"
-            
-        elif optimizer_idx == 2:
-            # Generator Loss
-            loss = self.G_loss(X=X_batch, Z=Z_batch) 
-            loss_name = "G_loss"
-            
-        elif optimizer_idx == 3:
-            # Supervisor Loss
-            loss = self.S_loss(X=X_batch, Z=Z_batch)
-            loss_name = "S_loss"
-            
-        elif optimizer_idx == 0:
-            # Embedder Loss
-            loss = self.E_loss(X=X_batch)
-            loss_name = "E_loss"
-
-        elif optimizer_idx == 4:
-            # Recovery Loss
-            loss = self.R_loss(X=X_batch)
-            loss_name = "R_loss"
+        # Discriminator Loss
+        D_loss = self.D_loss(X=X_batch, Z=Z_batch)
+        D_optim.zero_grad()
+        D_loss.backward()
+        D_optim.step()
         
-        else:
-            raise RuntimeError("There is an error in the optimizers configuration!")
+        # Generator Loss
+        G_loss = self.G_loss(X=X_batch, Z=Z_batch) 
+        G_optim.zero_grad()
+        G_loss.backward()
+        G_optim.step()
+
+        # Noise loss
+        N_loss = self.N_loss(Z=Z_batch)
+        N_optim.zero_grad()
+        N_loss.backward()
+        N_optim.step()
+        
+        # Supervisor Loss
+        S_loss = self.S_loss(X=X_batch, Z=Z_batch)
+        S_optim.zero_grad()
+        S_loss.backward()
+        S_optim.step()
+        
+        # Embedder Loss
+        E_loss = self.E_loss(X=X_batch)
+        E_optim.zero_grad()
+        E_loss.backward()
+        E_optim.step()
+
+        # Recovery Loss
+        R_loss = self.R_loss(X=X_batch)
+        R_optim.zero_grad()
+        R_loss.backward()
+        R_optim.step()
 
         # Log results
-        loss_dict = { loss_name: loss }
+        loss_dict = { "E_loss": E_loss, "D_loss": D_loss, "G_loss": G_loss, "S_loss": S_loss, "R_loss": R_loss }
         self.log_dict(loss_dict)
 
-        return loss
+        # Scheduler steps
+        if self.trainer.is_last_batch:
+            lr_scheduler_E, lr_scheduler_D, lr_scheduler_G, lr_scheduler_S, lr_scheduler_R, lr_scheduler_N = self.lr_schedulers()
+            lr_scheduler_E.step()
+            lr_scheduler_D.step()
+            lr_scheduler_G.step()
+            lr_scheduler_S.step()
+            lr_scheduler_R.step()
+            lr_scheduler_N.step()
+
+
+        return loss_dict
 
 
     def validation_step(self,
@@ -555,7 +591,6 @@ class TimeGAN(pl.LightningModule):
         '''
         # Process batch
         X_batch, Z_batch = batch
-        
 
         # Losses
         D_loss = self.D_loss(X=X_batch, Z=Z_batch)
@@ -564,10 +599,17 @@ class TimeGAN(pl.LightningModule):
         E_loss = self.E_loss(X=X_batch)
         R_loss = self.R_loss(X=X_batch)
 
-
         # visualize result
-        image_S = self.get_image_examples(X_batch[0], self.Rec(self.Sup(self.Gen(Z_batch)))[0], fake_label="Synthetic")
-        image_R = self.get_image_examples(X_batch[0], self.Rec(self.Emb(X_batch))[0], fake_label="Reconstruction")
+        if self.img_type:
+            image = self.get_image_examples(real=X_batch[0],
+                                                fake=self.Rec(self.Gen(Z_batch))[0],
+                                                label="Generated"
+                                                )
+        else:
+            image = self.get_image_examples(real=X_batch[0],
+                                                fake=self.Rec(self.Emb(X_batch))[0],
+                                                label="Reconstructed"
+                                                )
 
         # Validation loss
         w_e = 0.20
@@ -578,12 +620,15 @@ class TimeGAN(pl.LightningModule):
         aggregated_loss = w_e*E_loss + w_d*D_loss + w_g*G_loss + w_s*S_loss + w_r*R_loss
         self.log("val_loss", aggregated_loss)
 
-        return { "val_loss": aggregated_loss, "image_S": image_S, "image_R": image_R }
+        val_out = { "val_loss": aggregated_loss, "image": image }
+        self.validation_step_output.append(val_out)
+
+        return val_out
 
 
     def get_image_examples(self,
                            real: torch.Tensor, fake: torch.Tensor,
-                           fake_label:str="Synthetic"):
+                           label:str="Generated"):
         '''
         Given real and "fake" translated images, produce a nice coupled images to log
 
@@ -595,24 +640,18 @@ class TimeGAN(pl.LightningModule):
             - A sequence of wandb.Image to log and visualize the performance
         '''
         example_images = []
-        couple = ut.compare_sequences(real=real, fake=fake, save_img=False, show_graph=False, fake_label=fake_label)
+        img = ut.compare_sequences(real=real,
+                                      fake=fake,
+                                      fake_label=label,
+                                      save_img=False, show_graph=False)
 
         example_images.append(
-            wandb.Image(couple, mode="RGB")
+            wandb.Image(img, mode="RGB")
         )
         return example_images
 
 
-    def save_image_examples(self,
-                            real: torch.Tensor, fake: torch.Tensor, idx:int=0
-    ) -> None:
-        '''
-        Save the image of the plot with the real and fake sequence
-        '''
-        ut.compare_sequences(real=real, fake=fake, save_img=True, show_graph=False, img_idx=idx)
-
-
-    def validation_epoch_end(self, outputs: List[Dict[str, torch.Tensor]]
+    def on_validation_epoch_end(self
     ) -> Dict[str, torch.Tensor]:
         '''
         Implements the behaviouir at the end of a validation epoch
@@ -632,22 +671,23 @@ class TimeGAN(pl.LightningModule):
         images_S = []
         images_R = []
 
-        for x in outputs:
-            images_S.extend(x["image_S"])
-            images_R.extend(x["image_R"])
+        for x in self.validation_step_output:
+            images.extend(x["image"])
 
         images_S = images_S[: self.hparams["log_images"]]
         images_R = images_R[: self.hparams["log_images"]]
 
         if not self.is_sanity:  # ignore if it not a real validation epoch. The first one is not.
             self.logger.experiment.log(
-                {"images_S": images_S, "images_R": images_R },
+                { "images": images },
                 step=self.global_step,
             )
         self.is_sanity = False
 
-        avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
+        avg_loss = torch.stack([x["val_loss"] for x in self.validation_step_output]).mean()
         self.log_dict({"val_loss": avg_loss})
+        self.validation_step_output = []
+        self.img_type = not self.img_type
         return {"val_loss": avg_loss}
     
 
