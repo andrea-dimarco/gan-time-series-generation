@@ -71,6 +71,7 @@ def train(datasets_folder="./datasets/"):
     if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
         train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
         val_dataset_path  = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
+        val_dataset_path  = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
 
     elif hparams.dataset_name == 'real':
         train_dataset_path = hparams.train_file_path
@@ -87,7 +88,7 @@ def train(datasets_folder="./datasets/"):
     # Define the logger -> https://www.wandb.com/articles/pytorch-lightning-with-weights-biases.
     wandb_logger = WandbLogger(project="TimeGAN PyTorch (2024)", log_model=True)
 
-    wandb_logger.experiment.watch(timegan, log='all', log_freq=100)
+    wandb_logger.experiment.watch(timegan, log='all', log_freq=500)
 
     # Define the trainer
     early_stop = EarlyStopping(
@@ -106,6 +107,9 @@ def train(datasets_folder="./datasets/"):
 
     # Start the training
     trainer.fit(timegan)
+
+
+    timegan.plot()
 
     # Log the trained model
     trainer.save_checkpoint('timegan-checkpoint.pth')

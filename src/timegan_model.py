@@ -3,6 +3,7 @@
 # Libraries
 from typing import Sequence, Dict, Tuple, Union, Mapping
 
+
 from dataclasses import asdict
 from pathlib import Path
 
@@ -298,15 +299,21 @@ class TimeGAN(pl.LightningModule):
             # 4. Discriminator
         Y_fake   = self.Dis(H_hat)
         Y_real   = self.Dis(H)
+        Y_real   = self.Dis(H)
         Y_fake_e = self.Dis(E_hat)
 
 
         # Adversarial truths
         valid = torch.ones_like(Y_real)
         fake  = torch.zeros_like(Y_fake)
+        valid = torch.ones_like(Y_real)
+        fake  = torch.zeros_like(Y_fake)
 
 
         # Loss Components
+        loss_real   = self.discrimination_loss(Y_real,   valid)
+        loss_fake   = self.discrimination_loss(Y_fake,   fake)
+        loss_fake_e = self.discrimination_loss(Y_fake_e, fake)
         loss_real   = self.discrimination_loss(Y_real,   valid)
         loss_fake   = self.discrimination_loss(Y_fake,   fake)
         loss_fake_e = self.discrimination_loss(Y_fake_e, fake)
@@ -661,12 +668,14 @@ class TimeGAN(pl.LightningModule):
         Returns:
             - The aggregated validation loss and information to update the progress bar
         '''
-        images = []
+        images_S = []
+        images_R = []
 
         for x in self.validation_step_output:
             images.extend(x["image"])
 
-        images = images[: self.hparams["log_images"]]
+        images_S = images_S[: self.hparams["log_images"]]
+        images_R = images_R[: self.hparams["log_images"]]
 
         if not self.is_sanity:  # ignore if it not a real validation epoch. The first one is not.
             self.logger.experiment.log(
@@ -681,3 +690,9 @@ class TimeGAN(pl.LightningModule):
         self.img_type = not self.img_type
         return {"val_loss": avg_loss}
     
+
+    def plot(self):
+        if self.plot_losses and len(self.loss_history)>0:
+            import numpy as np
+            L = np.asarray(self.loss_history)
+            ut.plot_processes(samples=L, save_picture=False, show_plot=True)
