@@ -240,6 +240,7 @@ def predictive_test(model:TimeGAN, test_dataset_path:str,
     ## CREATE THE SYNTHETIC DATASET
     model.eval()
     with torch.no_grad():
+        print("Generating synthetic dataset.")
         ut.save_timeseries(samples=model.cycle(test_dataset.get_whole_stream()).reshape(test_dataset.n_samples, test_dataset.p),
                         folder_path=datasets_folder,
                         file_name=f"{hparams.dataset_name}_training_synth.csv"
@@ -270,8 +271,7 @@ def predictive_test(model:TimeGAN, test_dataset_path:str,
 
     # Define the trainer
     trainer = Trainer(logger=wandb_logger,
-                    max_epochs=hparams.forecaster_epochs,
-                    val_check_interval=1.0
+                    max_epochs=hparams.forecaster_epochs
                     )
 
     # Start the training
@@ -396,7 +396,7 @@ test_dataset = dh.RealDataset(
 ## TESTING LOOP
 limit = hparams.limit
 frequency = hparams.pic_frequency
-
+'''
 avg_rec_loss = recovery_seq_test(model=timegan,
                                 test_dataset=test_dataset,
                                 limit=limit,
@@ -414,21 +414,24 @@ generate_stream_test(model=timegan,
                     limit=limit,
                     folder_path="./test_results/",
                     save_pic=True,
+                    show_plot=False,
                     compare=False
                     )
-
+'''
 distribution_visualization(model=timegan,
                             test_dataset=test_dataset,
                             limit=limit,
                             folder_path="./test_results/",
-                            save_pic=True
+                            save_pic=True,
+                            show_plot=False,
                             )
-
+'''
 predictive_test(model=timegan,
                 test_dataset=test_dataset,
                 test_dataset_path=test_dataset_path,
                 folder_path="./test_results/",
                 save_pic=True,
+                show_plot=False,
                 limit=hparams.limit
                 )
-
+'''
