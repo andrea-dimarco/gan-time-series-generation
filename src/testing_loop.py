@@ -1,19 +1,20 @@
 from anomaly_detection import anomaly_detector_api as AD_API
 import dataset_handling as dh
 
-from typing import Tuple
-
-import pandas as pd
-import numpy as np
-import torch
 import os
-
-# My stuff
-from timegan_model import TimeGAN
-import utilities as ut
-from hyperparameters import Config
-from data_generation import sine_process, wiener_process, iid_sequence_generator
+import torch
+import numpy as np
+import pandas as pd
+from typing import Tuple
+import matplotlib.pyplot as plt
 from numpy import loadtxt, float32
+from pytorch_lightning import Trainer
+from pytorch_lightning.loggers.wandb import WandbLogger
+
+import utilities as ut
+from forecasting_model import SSF
+from timegan_model import TimeGAN
+from hyperparameters import Config
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -230,7 +231,7 @@ def discriminative_seq_test(model:TimeGAN, test_dataset:dh.RealDataset,
     Returns:
         - average accuracy
     '''
-    horizon = limit if limit>0 else len(test_dataset)
+    horizon = min(limit, len(test_dataset)) if limit>0 else len(test_dataset)
     good_preds = 0
     loss = 0
     test_name = "discrimination"
@@ -256,9 +257,10 @@ def discriminative_seq_test(model:TimeGAN, test_dataset:dh.RealDataset,
     return loss
 
 
-def predictive_test(model:TimeGAN, test_dataset:dh.RealDataset,
-                    limit:int=0, frequency:int=10,
-                    save_pictures:bool=True, folder_path:str="./test_results/generation_tests/"
+def predictive_test(model:TimeGAN, test_dataset_path:str,
+                    test_dataset:dh.RealDataset, limit:int=0,
+                    save_pic:bool=True, show_plot:bool=False,
+                    folder_path:str="./test_results/"
                     ) -> float:
     '''
     Train a simple LSTM to predict the next steps of the generated data
@@ -267,15 +269,80 @@ def predictive_test(model:TimeGAN, test_dataset:dh.RealDataset,
     Arguments:
         - `model`: TimeGAN model to test
         - `test_dataset`: test dataset
-        - `limit`: test sample number horizon
-        - `frequency`: how often to save the picture
-        - `save_pictures`: if to save the pictures or not
+        - `save_pic`: if to save the pictures or not
         - `folder_path`: where to save the pictures
 
     Returns:
         - average loss found
     '''
-    pass
+    # Parameters
+    hparams = Config()
+    horizon = min(limit, len(test_dataset)) if limit>0 else len(test_dataset)
+
+    ## CREATE THE SYNTHETIC DATASET
+    model.eval()
+    with torch.no_grad():
+        ut.save_timeseries(samples=model.cycle(test_dataset.get_whole_stream()).reshape(test_dataset.n_samples, test_dataset.p),
+                        folder_path=datasets_folder,
+                        file_name=f"{hparams.dataset_name}_training_synth.csv"
+                        )
+        train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training_synth.csv"
+        val_dataset_path   = f"{datasets_folder}{hparams.dataset_name}_validating_synth.csv"
+
+        dh.train_test_split(X=loadtxt(train_dataset_path, delimiter=",", dtype=float32),
+                        split=hparams.train_test_split,
+                        train_file_name=train_dataset_path,
+                        test_file_name=val_dataset_path    
+                        )
+    print(f"The {hparams.dataset_name} dataset has been split successfully into:\n\t- {train_dataset_path}\n\t- {val_dataset_path}")
+
+
+    # TRAIN FORECASTER
+    torch.multiprocessing.set_sharing_strategy('file_system')
+    # Instantiate the model
+    forecaster = SSF(hparams=hparams,
+                    train_file_path=train_dataset_path,
+                    val_file_path=val_dataset_path
+                    )
+
+    # Define the logger -> https://www.wandb.com/articles/pytorch-lightning-with-weights-biases.
+    wandb_logger = WandbLogger(project="SSF PyTorch (2024)", log_model=True)
+
+    wandb_logger.experiment.watch(forecaster, log='all', log_freq=500)
+
+    # Define the trainer
+    trainer = Trainer(logger=wandb_logger,
+                    max_epochs=hparams.forecaster_epochs,
+                    val_check_interval=1.0
+                    )
+
+    # Start the training
+    trainer.fit(forecaster)
+
+    torch.save(forecaster.state_dict(), f"forecaster-{hparams.dataset_name}.pth")
+
+    # Log the trained model
+    with torch.no_grad():
+        forecaster.eval()
+        forecaster.cpu()
+        dataset = dh.ForecastingDataset(file_path=test_dataset_path,seq_len=hparams.forecaster_seq_len)
+        print("Loaded real testing dataset.")
+        synth_plot = np.ones_like(dataset.get_whole_stream()) * np.nan
+        y_pred = forecaster(dataset.get_all_sequences())[hparams.seq_len:]
+        synth_plot[hparams.seq_len:dataset.n_samples] = y_pred
+        print("Predictions done.")
+
+        # only plot the first dimension
+        plt.plot(dataset.get_whole_stream()[:horizon,0])
+        plt.plot(synth_plot[:horizon,0], c='r')
+
+        print("Plot done.")
+
+        if save_pic:
+            plt.savefig(f"{folder_path}forecasting-plot.png")
+        if show_plot:
+            plt.show()
+        #plt.clf()
 
 
 def generate_stream_test(model:TimeGAN, test_dataset:dh.RealDataset,
@@ -287,9 +354,9 @@ def generate_stream_test(model:TimeGAN, test_dataset:dh.RealDataset,
     Generates a synthetic sequence and plots it against the real one.
     '''
     with torch.no_grad():
-        horizon = limit if limit>0 else test_dataset.n_samples
+        horizon = min(limit, len(test_dataset)) if limit>0 else len(test_dataset)
         timegan.eval()
-        synth = model(test_dataset.get_whole_noise_stream()[:horizon]
+        synth = model.cycle(test_dataset.get_whole_stream()[:horizon]
                         ).reshape(horizon, test_dataset.p)
         print("Synthetic stream has been generated.")
         if compare:
@@ -320,7 +387,7 @@ def distribution_visualization(model:TimeGAN, test_dataset:dh.RealDataset,
     Generates a synthetic sequence and plots it against the real one.
     '''
     with torch.no_grad():
-        horizon = limit if limit>0 else test_dataset.n_samples
+        horizon = min(limit, len(test_dataset)) if limit>0 else len(test_dataset)
         timegan.eval()
         # TODO: revert this
         #synth = model(test_dataset.get_whole_stream()[:horizon]
@@ -346,7 +413,7 @@ def distribution_visualization(model:TimeGAN, test_dataset:dh.RealDataset,
 hparams = Config()
 datasets_folder = "./datasets/"
 train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
-test_dataset_path   = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
+test_dataset_path  = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f"Using device {device}.")
 
@@ -355,13 +422,14 @@ timegan = TimeGAN(hparams=hparams,
                     train_file_path=train_dataset_path,
                     val_file_path=test_dataset_path
                     )
-timegan.load_state_dict(torch.load("./timegan-model.pth"))
+timegan.load_state_dict(torch.load("./timegan-model.pth"))#f"./timegan-{hparams.dataset_name}.pth"))
+
 timegan.eval()
 print(f"TimeGAN model loaded and ready for testing.")
 
 # Load the dataset
 test_dataset = dh.RealDataset(
-                file_path=train_dataset_path,
+                file_path=test_dataset_path,
                 seq_len=hparams.seq_len
                 )
 
@@ -369,40 +437,39 @@ test_dataset = dh.RealDataset(
 ## TESTING LOOP
 limit = hparams.limit
 frequency = hparams.pic_frequency
-if True:
 
-    avg_rec_loss = recovery_seq_test(model=timegan,
-                                 test_dataset=test_dataset,
-                                 limit=limit,
-                                 frequency=frequency
-                                 )
+avg_rec_loss = recovery_seq_test(model=timegan,
+                                test_dataset=test_dataset,
+                                limit=limit,
+                                frequency=frequency
+                                )
 
-    avg_gen_loss = generate_seq_test(model=timegan,
-                                   test_dataset=test_dataset,
-                                   limit=limit,
-                                   frequency=frequency
-                                   )
-    
-    generate_stream_test(model=timegan,
-                        test_dataset=test_dataset,
-                        limit=limit,
-                        folder_path="./test_results/",
-                        save_pic=True,
-                        show_plot=True,
-                        compare=False
-                        )
-    
-    distribution_visualization(model=timegan,
-                               test_dataset=test_dataset,
-                               limit=limit,
-                               folder_path="./test_results/",
-                               save_pic=True,
-                               show_plot=True
-                               )
-    
-    avg_pred_loss = predictive_test(model=timegan,
-                                    test_dataset=test_dataset,
-                                    limit=limit,
-                                    frequency=frequency
-                                    )
+avg_gen_loss = generate_seq_test(model=timegan,
+                                test_dataset=test_dataset,
+                                limit=limit,
+                                frequency=frequency
+                                )
+
+generate_stream_test(model=timegan,
+                    test_dataset=test_dataset,
+                    limit=limit,
+                    folder_path="./test_results/",
+                    save_pic=True,
+                    compare=False
+                    )
+
+distribution_visualization(model=timegan,
+                            test_dataset=test_dataset,
+                            limit=limit,
+                            folder_path="./test_results/",
+                            save_pic=True
+                            )
+
+predictive_test(model=timegan,
+                test_dataset=test_dataset,
+                test_dataset_path=test_dataset_path,
+                folder_path="./test_results/",
+                save_pic=True,
+                limit=hparams.limit
+                )
 

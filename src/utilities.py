@@ -1,12 +1,15 @@
-import numpy as np
 import torch
-from torch.nn import Module
-from random import uniform, randint
-from torch import Tensor, cat
-import matplotlib.pyplot as plt
-import matplotlib as mpl
+import random
 import numpy as np
+import numpy as np
+import pandas as pd
 from typing import List
+import matplotlib as mpl
+from torch.nn import Module
+from torch import Tensor, cat
+import pytorch_lightning as pl
+import matplotlib.pyplot as plt
+from random import uniform, randint
 from sklearn.decomposition import PCA
 
 # Just a function to count the number of parameters
@@ -215,3 +218,23 @@ def PCA_visualization(ori_data:torch.Tensor, generated_data:torch.Tensor,
         if show_plot:
             plt.show()
         plt.clf()
+
+
+def set_seed(seed=0) -> None:
+    np.random.seed(seed)
+    random.seed(seed)
+
+    torch.cuda.manual_seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.benchmark = False
+
+    _ = pl.seed_everything(seed)
+
+
+def save_timeseries(samples, folder_path:str="./", file_name="timeseries.csv") -> None:
+    '''
+    Save the samples as a csv file.
+    '''
+    # Save it
+    df = pd.DataFrame(samples)
+    df.to_csv(f"{folder_path}{file_name}", index=False, header=False)

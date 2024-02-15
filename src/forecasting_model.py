@@ -49,13 +49,13 @@ class SSF(pl.LightningModule):
 
         # Expected shapes 
         self.data_dim = hparams.data_dim
-        self.seq_len = hparams.seq_len
+        self.seq_len = hparams.forecaster_seq_len
 
         # Initialize Modules
         # input = ( batch_size, seq_len, data_dim )
         self.lstm = nn.LSTM(input_size=hparams.data_dim,
                             hidden_size=hparams.forecaster_hidden,
-                            num_layers=hparams.forecaster_epochs,
+                            num_layers=hparams.forecaster_layers,
                             batch_first=True
                             )
         self.fc = nn.Linear(in_features=hparams.forecaster_hidden,
@@ -102,7 +102,7 @@ class SSF(pl.LightningModule):
             - `train_loader`: the train set DataLoader
         '''
         train_loader = DataLoader(
-            dh.RealDataset(
+            dh.ForecastingDataset(
                 file_path=self.train_file_path,
                 seq_len=self.seq_len
             ),
@@ -124,7 +124,7 @@ class SSF(pl.LightningModule):
             - `val_loader`: the validation set DataLoader
         '''
         val_loader = DataLoader(
-            dh.RealDataset(
+            dh.ForecastingDataset(
                 file_path=self.val_file_path,
                 seq_len=self.seq_len
             ),
@@ -213,7 +213,7 @@ class SSF(pl.LightningModule):
         loss = self.rec_loss(pred, y)
 
         # visualize result
-        image = self.get_image_examples(y[0], self(x)[0], fake_label="Predicted Samples")
+        image = self.get_image_examples(real=y[0], fake=self(x)[0], fake_label="Predicted Sequence")
 
         # Validation loss
         val_out = { "val_loss": loss, "image": image }
@@ -236,7 +236,13 @@ class SSF(pl.LightningModule):
             - A sequence of wandb.Image to log and visualize the performance
         '''
         example_images = []
-        couple = ut.compare_sequences(real=real, fake=fake, save_img=False, show_graph=False, fake_label=fake_label)
+        couple = ut.compare_sequences(real=real,
+                                      fake=fake,
+                                      save_img=False,
+                                      show_graph=False,
+                                      real_label="TimeGAN Sequence",
+                                      fake_label=fake_label
+                                      )
 
         example_images.append(
             wandb.Image(couple, mode="RGB")

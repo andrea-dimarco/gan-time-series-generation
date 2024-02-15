@@ -41,9 +41,9 @@ class Config:
                                # . . . . . . . . . with random mutual correlations
     train_test_split: float = 0.8 #. . . Split between training and testing samples
     train_val_split: float  = 0.8 #. . . Split between training and validating samples
-    num_samples: int = 10**7 # . . . . . Number of samples to generate (if any)
+    num_samples: int = 10**6 # . . . . . Number of samples to generate (if any)
     data_dim: int =  3 # . . . . . . . . Dimension of one generated sample (if any)
-    seq_len: int  = 50**2 #. . . . . . . Length of the input sequences
+    seq_len: int  = 10**3 #. . . . . . . Length of the input sequences
 
 
     ## Network parameters
@@ -73,9 +73,10 @@ class Config:
     ## Testing phase
     alpha: float = 0.1 # . . . . . . . . Parameter for the Anomaly Detector
     h: float = 10 #. . . . . . . . . . . Parameter for the Anomaly Detector
-    limit:int = 2000 # . . . . . . . . . Amount of elements to consider when running tests
+    limit:int = 1000 # . . . . . . . . . Amount of elements to consider when running tests
     pic_frequency:int = 100 #. . . . . . How many steps to wait before saving a new picture during testing
 
-    forecaster_epochs:int = 10**2 #. . . Amount of epochs to train the forecaster model
-    forecaster_hidden:int = 30 # . . . . Hidden dimension for the forecaster
+    forecaster_epochs:int = 10**1 #. . . Amount of epochs to train the forecaster model
+    forecaster_hidden:int = 50 # . . . . Hidden dimension for the forecaster
     forecaster_layers:int = 1 #. . . . . Number of layers for the forecaster
+    forecaster_seq_len:int = 100 # . . . Lookback window for the forecaster

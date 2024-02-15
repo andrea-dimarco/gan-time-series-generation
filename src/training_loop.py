@@ -1,17 +1,17 @@
 
-from timegan_model import TimeGAN
-from pytorch_lightning.loggers.wandb import WandbLogger
-from pytorch_lightning.callbacks import EarlyStopping
-from pytorch_lightning import Trainer
-import wandb
-from hyperparameters import Config
 import torch
-
-from data_generation import iid_sequence_generator, sine_process, wiener_process
-from dataset_handling import train_test_split
+import wandb
 from numpy import loadtxt, float32
-import dataset_handling as dh
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.loggers.wandb import WandbLogger
+
 import utilities as ut
+import dataset_handling as dh
+from timegan_model import TimeGAN
+from hyperparameters import Config
+from dataset_handling import train_test_split
+from data_generation import iid_sequence_generator, sine_process, wiener_process
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -24,13 +24,21 @@ def generate_data(datasets_folder="./datasets/"):
         # Generate and store the dataset as requested
         dataset_path = f"{datasets_folder}{hparams.dataset_name}_generated_stream.csv"
         if hparams.dataset_name == 'sine':
-            sine_process.save_sine_process(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
+            sine_process.save_sine_process(p=hparams.data_dim,
+                                           N=hparams.num_samples,
+                                           file_path=dataset_path)
         elif hparams.dataset_name == 'wien':
-            wiener_process.save_wiener_process(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
+            wiener_process.save_wiener_process(p=hparams.data_dim,
+                                               N=hparams.num_samples,
+                                               file_path=dataset_path)
         elif hparams.dataset_name == 'iid':
-            iid_sequence_generator.save_iid_sequence(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
+            iid_sequence_generator.save_iid_sequence(p=hparams.data_dim,
+                                                     N=hparams.num_samples,
+                                                     file_path=dataset_path)
         elif hparams.dataset_name == 'cov':
-            iid_sequence_generator.save_cov_sequence(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
+            iid_sequence_generator.save_cov_sequence(p=hparams.data_dim,
+                                                     N=hparams.num_samples,
+                                                     file_path=dataset_path)
         else:
             raise ValueError
         print(f"The {hparams.dataset_name} dataset has been succesfully created and stored into:\n\t- {dataset_path}")
@@ -107,9 +115,8 @@ def train(datasets_folder="./datasets/"):
     trainer.fit(timegan)
 
     # Log the trained model
-    #trainer.save_checkpoint('timegan-checkpoint.pth')
     #wandb.save('timegan-wandb.pth') # use this for wandb online
-    torch.save(timegan.state_dict(), "timegan-model.pth") # use this when logging progress offline
+    torch.save(timegan.state_dict(), f"timegan-{hparams.dataset_name}.pth") # use this when logging progress offline
     return timegan
 
 
@@ -151,26 +158,11 @@ def validate_model(model:TimeGAN, datasets_folder:str="./datasets/", limit:int=1
             break
 
 
-import numpy as np
-import random
-import pytorch_lightning as pl
-def set_seed(seed=0) -> None:
-    np.random.seed(seed)
-    random.seed(seed)
-
-    torch.cuda.manual_seed(seed)
-    torch.manual_seed(seed)
-    torch.backends.cudnn.benchmark = False
-
-    _ = pl.seed_everything(seed)
-
-
-
 # # # # # # # # #
 # Training Area #
 # # # # # # # # #
 datasets_folder = "./datasets/"
 #generate_data(datasets_folder)
-set_seed(seed=1337)
-train(datasets_folder)
+ut.set_seed(seed=1337)
+train(datasets_folder=datasets_folder)
 
