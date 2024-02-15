@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore")
 
 def generate_data(datasets_folder="./datasets/"):
     hparams = Config()
-
+    print("Generating datasets.")
     if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
         # Generate and store the dataset as requested
         dataset_path = f"{datasets_folder}{hparams.dataset_name}_generated_stream.csv"
@@ -50,23 +50,25 @@ def generate_data(datasets_folder="./datasets/"):
 
     if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
         train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
-        val_dataset_path   = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
+        test_dataset_path   = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
 
         train_test_split(X=loadtxt(dataset_path, delimiter=",", dtype=float32),
                         split=hparams.train_test_split,
                         train_file_name=train_dataset_path,
-                        test_file_name=val_dataset_path    
+                        test_file_name=test_dataset_path    
                         )
-        print(f"The {hparams.dataset_name} dataset has been split successfully into:\n\t- {train_dataset_path}\n\t- {val_dataset_path}")
+        print(f"The {hparams.dataset_name} dataset has been split successfully into:\n\t- {train_dataset_path}\n\t- {test_dataset_path}")
     elif hparams.dataset_name == 'real':
         train_dataset_path = datasets_folder + hparams.train_file_name
-        val_dataset_path   = datasets_folder + hparams.test_file_name
+        test_dataset_path   = datasets_folder + hparams.test_file_name
     else:
         raise ValueError("Dataset not supported.")
 
 
 def train(datasets_folder="./datasets/"):
-
+    '''
+    Train the TimeGAN model
+    '''
     torch.multiprocessing.set_sharing_strategy('file_system')
     torch.set_float32_matmul_precision('medium')
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -162,7 +164,7 @@ def validate_model(model:TimeGAN, datasets_folder:str="./datasets/", limit:int=1
 # Training Area #
 # # # # # # # # #
 datasets_folder = "./datasets/"
-#generate_data(datasets_folder)
+generate_data(datasets_folder)
 ut.set_seed(seed=1337)
 train(datasets_folder=datasets_folder)
 

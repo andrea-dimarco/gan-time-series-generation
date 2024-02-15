@@ -20,49 +20,6 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def generate_data(datasets_folder="./datasets/"
-                  ) -> Tuple[str, str]:
-    hparams = Config()
-
-    if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
-        # Generate and store the dataset as requested
-        dataset_path = f"{datasets_folder}{hparams.dataset_name}_generated_stream.csv"
-        if hparams.dataset_name == 'sine':
-            sine_process.save_sine_process(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-        elif hparams.dataset_name == 'wien':
-            wiener_process.save_wiener_process(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-            print("\n")
-        elif hparams.dataset_name == 'iid':
-            iid_sequence_generator.save_iid_sequence(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-        elif hparams.dataset_name == 'cov':
-            iid_sequence_generator.save_cov_sequence(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-        else:
-            raise ValueError
-        print(f"The {hparams.dataset_name} dataset has been succesfully created and stored into:\n\t- {dataset_path}")
-    elif hparams.dataset_name == 'real':
-        pass
-    else:
-        raise ValueError("Dataset not supported.")
-
-    if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
-        train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
-        val_dataset_path   = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
-
-        dh.train_test_split(X=loadtxt(dataset_path, delimiter=",", dtype=float32),
-                        split=hparams.train_test_split,
-                        train_file_name=train_dataset_path,
-                        test_file_name=val_dataset_path    
-                        )
-        print(f"The {hparams.dataset_name} dataset has been split successfully into:\n\t- {train_dataset_path}\n\t- {val_dataset_path}")
-    elif hparams.dataset_name == 'real':
-        train_dataset_path = datasets_folder + hparams.train_file_name
-        val_dataset_path   = datasets_folder + hparams.test_file_name
-    else:
-        raise ValueError("Dataset not supported.")
-    
-    return train_dataset_path, val_dataset_path
-
-
 def AD_tests(model:TimeGAN, test_dataset:dh.RealDataset
              ) -> Tuple[float, float]:
     hparams = Config()
@@ -143,7 +100,7 @@ def recovery_seq_test(model:TimeGAN, test_dataset:dh.RealDataset,
     small_seq = min(limit, test_dataset.seq_len) if limit>0 else test_dataset.seq_len
     pic_id = 0
     loss = 0
-    test_name = "recovery"
+    test_name = f"{hparams.dataset_name}-recovery"
     print(f"Test type:{test_name} has started.")
     for idx, (X, Z) in enumerate(test_dataset):
         if idx >= horizon:
@@ -190,7 +147,7 @@ def generate_seq_test(model:TimeGAN, test_dataset:dh.RealDataset,
     small_seq = min(limit, test_dataset.seq_len) if limit>0 else test_dataset.seq_len
     pic_id = 0
     loss = 0
-    test_name = "generation"
+    test_name = f"{hparams.dataset_name}-generation"
     print(f"Test type: {test_name} has started.")
     for idx, (X, Z) in enumerate(test_dataset):
         if idx >= horizon:
@@ -234,7 +191,8 @@ def discriminative_seq_test(model:TimeGAN, test_dataset:dh.RealDataset,
     horizon = min(limit, len(test_dataset)) if limit>0 else len(test_dataset)
     good_preds = 0
     loss = 0
-    test_name = "discrimination"
+    test_name = f"{hparams.dataset_name}-discrimination"
+    print(f"Test type: {test_name} has started.")
     for idx, (X, Z) in enumerate(test_dataset):
         if idx >= horizon:
             break
@@ -339,7 +297,7 @@ def predictive_test(model:TimeGAN, test_dataset_path:str,
         print("Plot done.")
 
         if save_pic:
-            plt.savefig(f"{folder_path}forecasting-plot.png")
+            plt.savefig(f"{folder_path}{hparams.dataset_name}-forecasting-plot.png")
         if show_plot:
             plt.show()
         #plt.clf()
@@ -364,7 +322,7 @@ def generate_stream_test(model:TimeGAN, test_dataset:dh.RealDataset,
                                 fake=synth,
                                 real_label="Original data",
                                 fake_label="Synthetic Data",
-                                img_name="real-vs-synth",
+                                img_name=f"{hparams.dataset_name}-real-vs-synth",
                                 save_img=save_pic,
                                 show_graph=show_plot,
                                 folder_path=folder_path
@@ -374,7 +332,7 @@ def generate_stream_test(model:TimeGAN, test_dataset:dh.RealDataset,
                             save_picture=save_pic,
                             show_plot=show_plot,
                             folder_path=folder_path,
-                            img_name="synth"
+                            img_name=f"{hparams.dataset_name}-synth"
                             )
         print("Plot done.")
 
@@ -400,7 +358,8 @@ def distribution_visualization(model:TimeGAN, test_dataset:dh.RealDataset,
                              generated_data=synth,
                              show_plot=show_plot,
                              folder_path=folder_path,
-                             save_plot=save_pic
+                             save_plot=save_pic,
+                             img_name=f"{hparams.dataset_name}-pca-visual"
                              )
         print("Distribution visualization done.")
 
@@ -422,10 +381,10 @@ timegan = TimeGAN(hparams=hparams,
                     train_file_path=train_dataset_path,
                     val_file_path=test_dataset_path
                     )
-timegan.load_state_dict(torch.load("./timegan-model.pth"))#f"./timegan-{hparams.dataset_name}.pth"))
+timegan.load_state_dict(torch.load(f"./timegan-{hparams.dataset_name}.pth"))
 
 timegan.eval()
-print(f"TimeGAN model loaded and ready for testing.")
+print(f"TimeGAN {hparams.dataset_name} model loaded and ready for testing.")
 
 # Load the dataset
 test_dataset = dh.RealDataset(
