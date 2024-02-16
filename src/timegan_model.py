@@ -1,25 +1,18 @@
-
-
 # Libraries
-from typing import Sequence, Dict, Tuple, Union, Mapping
-
-from dataclasses import asdict
-from pathlib import Path
-
-from torch.utils.data import DataLoader
-
+import wandb
 import torch
 from torch import optim
-
-import wandb
+from pathlib import Path
 import pytorch_lightning as pl
+from dataclasses import asdict
+from torch.utils.data import DataLoader
+from typing import Sequence, Dict, Tuple, Union, Mapping
 
-# My modules
-import dataset_handling as dh
 import utilities as ut
+import dataset_handling as dh
 from hyperparameters import Config
-from modules.classifier_cell import ClassCell
 from modules.regressor_cell import RegCell
+from modules.classifier_cell import ClassCell
 
 '''
 This is the main model.
@@ -188,8 +181,7 @@ class TimeGAN(pl.LightningModule):
 
 
     def configure_optimizers(self
-    ) -> Tuple[optim.Optimizer, optim.Optimizer, optim.Optimizer, optim.Optimizer, optim.Optimizer]:
-    #) -> Tuple[Sequence[optim.Optimizer], Sequence[Dict[str, Any]]]:
+    ):
         '''
         Instantiate the optimizers and schedulers.
 
@@ -326,15 +318,14 @@ class TimeGAN(pl.LightningModule):
                w1:float=0.45, w2:float=0.10, w3:float=0.45
     ) -> torch.Tensor:
         # Compute model outputs
-            # 1. Embedder
-            # 2. Generator
+            # 1. Generator
         E_hat = self.Gen(Z) 
-            # 3. Supervisor
+            # 2. Supervisor
         H_hat = self.Sup(E_hat)
-            # 4. Recovery
+            # 3. Recovery
         X_hat   = self.Rec(E_hat)
         X_hat_s = self.Rec(H_hat)
-            # 5. Discriminator
+            # 4. Discriminator
         Y_real   = self.DataDis(X)
         Y_fake   = self.DataDis(X_hat_s)
         Y_fake_e = self.DataDis(X_hat)
@@ -455,15 +446,15 @@ class TimeGAN(pl.LightningModule):
             # 1. Embedder
         H = self.Emb(X)
             # 2. Supervisor
-        #H_hat_supervise = self.Sup(H)
+        H_hat_supervise = self.Sup(H)
             # 3. Recovery
         X_tilde = self.Rec(H)
 
         # Loss Components
         R_loss = self.reconstruction_loss(X, X_tilde)
-        #S_loss = self.reconstruction_loss(H, H_hat_supervise)
+        S_loss = self.reconstruction_loss(H, H_hat_supervise)
 
-        return w1*R_loss #+ w2*S_loss
+        return w1*R_loss + w2*S_loss
     
 
     def R_loss(self, X: torch.Tensor,

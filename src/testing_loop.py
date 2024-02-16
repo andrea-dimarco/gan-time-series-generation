@@ -314,7 +314,7 @@ def generate_stream_test(model:TimeGAN, test_dataset:dh.RealDataset,
     with torch.no_grad():
         horizon = min(limit, len(test_dataset)) if limit>0 else len(test_dataset)
         timegan.eval()
-        synth = model.cycle(test_dataset.get_whole_stream()[:horizon]
+        synth = model(test_dataset.get_whole_noise_stream()[:horizon]
                         ).reshape(horizon, test_dataset.p)
         print("Synthetic stream has been generated.")
         if compare:
@@ -347,9 +347,7 @@ def distribution_visualization(model:TimeGAN, test_dataset:dh.RealDataset,
     with torch.no_grad():
         horizon = min(limit, len(test_dataset)) if limit>0 else len(test_dataset)
         timegan.eval()
-        # TODO: revert this
-        #synth = model(test_dataset.get_whole_stream()[:horizon]
-        synth = model.cycle(test_dataset.get_whole_stream()[:horizon]
+        synth = model(test_dataset.get_whole_noise_stream()[:horizon]
                         ).reshape(horizon, test_dataset.p)
         original = test_dataset.get_whole_stream()[:horizon]
         print("Synthetic stream has been generated.")
@@ -393,10 +391,10 @@ test_dataset = dh.RealDataset(
                 )
 
 
-## TESTING LOOP
+## TESTS
 limit = hparams.limit
 frequency = hparams.pic_frequency
-'''
+
 avg_rec_loss = recovery_seq_test(model=timegan,
                                 test_dataset=test_dataset,
                                 limit=limit,
@@ -434,5 +432,5 @@ predictive_test(model=timegan,
                 show_plot=False,
                 limit=hparams.limit
                 )
-'''
+
 AD_tests(model=timegan, test_dataset=test_dataset)

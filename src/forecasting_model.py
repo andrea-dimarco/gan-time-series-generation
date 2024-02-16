@@ -1,23 +1,19 @@
 
 
 # Libraries
-from typing import Sequence, Dict, Tuple, Union, Mapping
-
-from dataclasses import asdict
-from pathlib import Path
-
-from torch.utils.data import DataLoader
-
+import wandb
 import torch
 import torch.nn as nn
 from torch import optim
-
-import wandb
+from pathlib import Path
 import pytorch_lightning as pl
+from dataclasses import asdict
+from torch.utils.data import DataLoader
+from typing import Sequence, Dict, Tuple, Union, Mapping
 
 # My modules
-import dataset_handling as dh
 import utilities as ut
+import dataset_handling as dh
 from hyperparameters import Config
 
 '''

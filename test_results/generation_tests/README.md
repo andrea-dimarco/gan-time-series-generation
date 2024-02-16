@@ -1,1 +1,1 @@
-Save your generation test results here!!
+Geneation test results will be saved here.

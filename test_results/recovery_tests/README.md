@@ -1,1 +1,1 @@
-Save your recovery test results here!!
+Recovery test results will be saved here.
