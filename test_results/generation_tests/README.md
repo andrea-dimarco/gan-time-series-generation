@@ -1,1 +1,0 @@
-Geneation test results will be saved here.
