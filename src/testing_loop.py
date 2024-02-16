@@ -20,7 +20,8 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
-def AD_tests(model:TimeGAN, test_dataset:dh.RealDataset
+def AD_tests(model:TimeGAN, test_dataset:dh.RealDataset,
+             AD_folder:str="./src/anomaly_detection/"
              ) -> Tuple[float, float]:
     hparams = Config()
     if hparams.operating_system != 'windows':
@@ -29,13 +30,12 @@ def AD_tests(model:TimeGAN, test_dataset:dh.RealDataset
         TAR_tot = 0.0 # True Alarm Rate (on synthetic data)
 
         # train anomaly detectors
-        AD_folder = "./src/anomaly_detection/"
         AD_offline_path = f"{datasets_folder}{hparams.dataset_name}_testing_AD_offline.csv"
         AD_online_path  = f"{datasets_folder}{hparams.dataset_name}_testing_AD_online.csv"
 
         # since the model is trained on normalized data
         # we must train the AD on normalized data as well
-        df = pd.DataFrame( np.transpose(test_dataset.get_whole_stream().numpy()) )
+        df = pd.DataFrame(np.transpose(test_dataset.get_whole_stream().numpy()) )
         df.to_csv(AD_offline_path, index=False, header=False)
 
         # train AD
@@ -417,7 +417,7 @@ generate_stream_test(model=timegan,
                     show_plot=False,
                     compare=False
                     )
-'''
+
 distribution_visualization(model=timegan,
                             test_dataset=test_dataset,
                             limit=limit,
@@ -425,7 +425,7 @@ distribution_visualization(model=timegan,
                             save_pic=True,
                             show_plot=False,
                             )
-'''
+
 predictive_test(model=timegan,
                 test_dataset=test_dataset,
                 test_dataset_path=test_dataset_path,
@@ -435,3 +435,4 @@ predictive_test(model=timegan,
                 limit=hparams.limit
                 )
 '''
+AD_tests(model=timegan, test_dataset=test_dataset)
