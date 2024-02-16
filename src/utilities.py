@@ -89,7 +89,6 @@ def plot_process(samples, labels:List[str]|None=None,
         if show_plot:
             plt.show()
         plt.clf()
-        plt.clf()
 
 
 def compare_sequences(real: Tensor, fake: Tensor,
@@ -117,11 +116,9 @@ def compare_sequences(real: Tensor, fake: Tensor,
 
     for i in range(real.shape[1]):
         ax0.plot(real.cpu()[:,i])
-        ax0.plot(real.cpu()[:,i])
     ax0.set_ylabel(real_label)
 
     for i in range(fake.shape[1]):
-        ax1.plot(fake.cpu()[:,i])
         ax1.plot(fake.cpu()[:,i])
     ax1.set_ylabel(fake_label)
 
