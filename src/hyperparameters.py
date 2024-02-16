@@ -12,7 +12,7 @@ class Config:
 
     ## Training parameters
     n_epochs: int = 10**2 #. . . . . . . Number of epochs of training
-    early_stop_patience: int = 100#. . . Amount of epochs to wait for improvement
+    early_stop_patience: int = 10 #. . . Amount of epochs to wait for improvement
     decay_epoch: int = 0 # . . . . . . . Epoch from which to start lr decay
 
     batch_size: int = 128# . . . . . . . Amount of samples in each batch
@@ -41,7 +41,7 @@ class Config:
     train_test_split: float = 0.7 #. . . Split between training and testing samples
     train_val_split: float  = 0.8 #. . . Split between training and validating samples
     num_samples: int = 10**6 # . . . . . Number of samples to generate (if any)
-    data_dim: int =  3 # . . . . . . . . Dimension of one generated sample (if any)
+    data_dim: int =  5 # . . . . . . . . Dimension of one generated sample (if any)
     seq_len: int  = 10**3 #. . . . . . . Length of the input sequences
 
 
@@ -73,7 +73,7 @@ class Config:
     operating_system:str = 'linux' #. . if 'windows' it won't run the anomaly detector
     alpha: float = 0.1 #. . . . . . . . Parameter for the Anomaly Detector
     h: float = 10 # . . . . . . . . . . Parameter for the Anomaly Detector
-    limit:int = 1000# . . . . . . . . . Amount of elements to consider when running tests
+    limit:int = 1000 #. . . . . . . . . Amount of elements to consider when running tests
     pic_frequency:int = 100 # . . . . . How many steps to wait before saving a new picture during testing
 
     forecaster_epochs:int = 10**1 #. . . Amount of epochs to train the forecaster model
