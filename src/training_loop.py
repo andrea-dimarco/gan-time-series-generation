@@ -1,65 +1,24 @@
 
-from timegan_model import TimeGAN
-from pytorch_lightning.loggers.wandb import WandbLogger
-from pytorch_lightning.callbacks import EarlyStopping
-from pytorch_lightning import Trainer
-import wandb
-from hyperparameters import Config
 import torch
-
-from data_generation import iid_sequence_generator, sine_process, wiener_process
-from dataset_handling import train_test_split
+import wandb
 from numpy import loadtxt, float32
-import dataset_handling as dh
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.loggers.wandb import WandbLogger
+
 import utilities as ut
+import dataset_handling as dh
+from timegan_model import TimeGAN
+from hyperparameters import Config
 
 import warnings
 warnings.filterwarnings("ignore")
 
 
-def generate_data(datasets_folder="./datasets/"):
-    hparams = Config()
-
-    if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
-        # Generate and store the dataset as requested
-        dataset_path = f"{datasets_folder}{hparams.dataset_name}_generated_stream.csv"
-        if hparams.dataset_name == 'sine':
-            sine_process.save_sine_process(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-        elif hparams.dataset_name == 'wien':
-            wiener_process.save_wiener_process(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-            print("\n")
-        elif hparams.dataset_name == 'iid':
-            iid_sequence_generator.save_iid_sequence(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-        elif hparams.dataset_name == 'cov':
-            iid_sequence_generator.save_cov_sequence(p=hparams.data_dim, N=hparams.num_samples, file_path=dataset_path)
-        else:
-            raise ValueError
-        print(f"The {hparams.dataset_name} dataset has been succesfully created and stored into:\n\t- {dataset_path}")
-    elif hparams.dataset_name == 'real':
-        pass
-    else:
-        raise ValueError("Dataset not supported.")
-    
-
-    if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
-        train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
-        val_dataset_path   = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
-
-        train_test_split(X=loadtxt(dataset_path, delimiter=",", dtype=float32),
-                        split=hparams.train_test_split,
-                        train_file_name=train_dataset_path,
-                        test_file_name=val_dataset_path    
-                        )
-        print(f"The {hparams.dataset_name} dataset has been split successfully into:\n\t- {train_dataset_path}\n\t- {val_dataset_path}")
-    elif hparams.dataset_name == 'real':
-        train_dataset_path = datasets_folder + hparams.train_file_name
-        val_dataset_path   = datasets_folder + hparams.test_file_name
-    else:
-        raise ValueError("Dataset not supported.")
-
-
 def train(datasets_folder="./datasets/"):
-
+    '''
+    Train the TimeGAN model
+    '''
     torch.multiprocessing.set_sharing_strategy('file_system')
     torch.set_float32_matmul_precision('medium')
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -112,9 +71,8 @@ def train(datasets_folder="./datasets/"):
     timegan.plot()
 
     # Log the trained model
-    trainer.save_checkpoint('timegan-checkpoint.pth')
-    wandb.save('timegan-wandb.pth') # use this for wandb online
-    torch.save(timegan.state_dict(), "timegan-model.pth") # use this when logging progress offline
+    #wandb.save('timegan-wandb.pth') # use this for wandb online
+    torch.save(timegan.state_dict(), f"timegan-{hparams.dataset_name}.pth") # use this when logging progress offline
     return timegan
 
 
@@ -152,31 +110,15 @@ def validate_model(model:TimeGAN, datasets_folder:str="./datasets/", limit:int=1
             X_tilde = model.cycle(X_seq).cpu().detach().reshape(hparams.seq_len, hparams.data_dim)
             # save result
             ut.compare_sequences(real=X, fake=X_tilde, save_img=True, img_idx=idx, show_graph=False)
-
         else:
             break
-
-
-import numpy as np
-import random
-import pytorch_lightning as pl
-def set_seed(seed=0) -> None:
-    np.random.seed(seed)
-    random.seed(seed)
-
-    torch.cuda.manual_seed(seed)
-    torch.manual_seed(seed)
-    torch.backends.cudnn.benchmark = False
-
-    _ = pl.seed_everything(seed)
-
 
 
 # # # # # # # # #
 # Training Area #
 # # # # # # # # #
 datasets_folder = "./datasets/"
-generate_data(datasets_folder)
-set_seed(seed=0)
-train(datasets_folder)
+ut.generate_data(datasets_folder)
+ut.set_seed(seed=1337)
+train(datasets_folder=datasets_folder)
 

@@ -1,12 +1,15 @@
-import numpy as np
 import torch
-from torch.nn import Module
-from random import uniform, randint
-from torch import Tensor, cat
-import matplotlib.pyplot as plt
-import matplotlib as mpl
+import random
 import numpy as np
+import numpy as np
+import pandas as pd
 from typing import List
+import matplotlib as mpl
+from torch.nn import Module
+from torch import Tensor, cat
+import pytorch_lightning as pl
+import matplotlib.pyplot as plt
+from random import uniform, randint
 from sklearn.decomposition import PCA
 
 # Just a function to count the number of parameters
@@ -170,9 +173,9 @@ class LambdaLR():
         )
 
 
-def distribution_visualization(ori_data:torch.Tensor, generated_data:torch.Tensor, 
+def PCA_visualization(ori_data:torch.Tensor, generated_data:torch.Tensor, 
                                show_plot:bool=False, save_plot:bool=True,
-                               folder_path:str="./"
+                               folder_path:str="./", img_name:str="pca-visual"
                                ) -> None:
     """
     Using PCA for generated and original data visualization
@@ -189,8 +192,7 @@ def distribution_visualization(ori_data:torch.Tensor, generated_data:torch.Tenso
     """  
     if show_plot or save_plot:
         # Data preprocessing
-        n_sequences, seq_len, data_dim = ori_data.size()  
-        N = n_sequences * seq_len
+        N, data_dim = ori_data.size()  
         p = data_dim
 
         prep_data = ori_data.reshape(N,p).numpy()
@@ -213,9 +215,97 @@ def distribution_visualization(ori_data:torch.Tensor, generated_data:torch.Tenso
                     c=blue, alpha = 0.2, label = "Synthetic")
 
         ax.legend()  
-        plt.title('PCA plot')
+        plt.title('Distribution comparison')
+        if save_plot:
+            plt.savefig(f"{folder_path}{img_name}.png")
         if show_plot:
             plt.show()
-        if save_plot:
-            plt.savefig(f"{folder_path}pca-plot.png")
         plt.clf()
+
+
+def set_seed(seed=0) -> None:
+    np.random.seed(seed)
+    random.seed(seed)
+
+    torch.cuda.manual_seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.benchmark = False
+
+    _ = pl.seed_everything(seed)
+
+
+def save_timeseries(samples, folder_path:str="./", file_name="timeseries.csv") -> None:
+    '''
+    Save the samples as a csv file.
+    '''
+    # Save it
+    df = pd.DataFrame(samples)
+    df.to_csv(f"{folder_path}{file_name}", index=False, header=False)
+
+
+def generate_data(datasets_folder="./datasets/"):
+    '''
+    Generate the required datasets for training and testing.
+    '''
+    from hyperparameters import Config
+    from data_generation import sine_process, iid_sequence_generator, wiener_process
+    from dataset_handling import train_test_split
+    from numpy import loadtxt, float32
+
+    hparams = Config()
+    print("Generating datasets.")
+    if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
+        # Generate and store the dataset as requested
+        dataset_path = f"{datasets_folder}{hparams.dataset_name}_generated_stream.csv"
+        if hparams.dataset_name == 'sine':
+            sine_process.save_sine_process(p=hparams.data_dim,
+                                           N=hparams.num_samples,
+                                           file_path=dataset_path)
+        elif hparams.dataset_name == 'wien':
+            wiener_process.save_wiener_process(p=hparams.data_dim,
+                                               N=hparams.num_samples,
+                                               file_path=dataset_path)
+        elif hparams.dataset_name == 'iid':
+            iid_sequence_generator.save_iid_sequence(p=hparams.data_dim,
+                                                     N=hparams.num_samples,
+                                                     file_path=dataset_path)
+        elif hparams.dataset_name == 'cov':
+            iid_sequence_generator.save_cov_sequence(p=hparams.data_dim,
+                                                     N=hparams.num_samples,
+                                                     file_path=dataset_path)
+        else:
+            raise ValueError
+        print(f"The {hparams.dataset_name} dataset has been succesfully created and stored into:\n\t- {dataset_path}")
+    elif hparams.dataset_name == 'real':
+        pass
+    else:
+        raise ValueError("Dataset not supported.")
+    
+
+    if hparams.dataset_name in ['sine', 'wien', 'iid', 'cov']:
+        train_dataset_path = f"{datasets_folder}{hparams.dataset_name}_training.csv"
+        test_dataset_path  = f"{datasets_folder}{hparams.dataset_name}_testing.csv"
+        val_dataset_path   = f"{datasets_folder}{hparams.dataset_name}_validating.csv"
+
+        # Train & Test
+        train_test_split(X=loadtxt(dataset_path, delimiter=",", dtype=float32),
+                        split=hparams.train_test_split,
+                        train_file_name=train_dataset_path,
+                        test_file_name=val_dataset_path    
+                        )
+        
+        # Train & Validation
+        train_test_split(X=np.loadtxt(train_dataset_path, delimiter=",", dtype=np.float32),
+                        split=hparams.train_val_split,
+                        train_file_name=train_dataset_path,
+                        test_file_name=val_dataset_path    
+                        )
+        print(f"The {hparams.dataset_name} dataset has been split successfully into:\n\t- {train_dataset_path}\n\t- {val_dataset_path}")
+    elif hparams.dataset_name == 'real':
+        train_dataset_path = datasets_folder + hparams.train_file_name
+        val_dataset_path   = datasets_folder + hparams.val_file_name
+        test_dataset_path  = datasets_folder + hparams.test_file_name
+    else:
+        raise ValueError("Dataset not supported.")
+    
+    return train_dataset_path, val_dataset_path, test_dataset_path
